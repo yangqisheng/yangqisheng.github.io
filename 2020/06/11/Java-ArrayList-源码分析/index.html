@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="ArrayList 构造函数," />
 
 
 
@@ -79,13 +79,20 @@
 
 
 
-<meta property="og:type" content="website">
-<meta property="og:title" content="Qisheng&#39;s Blog">
-<meta property="og:url" content="http://yoursite.com/index.html">
+<meta name="description" content="前言ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。  先自己简单实现一遍 对照库的实现，挨个分析库为什么要那么写，那么写有什么好处。 库实现，涉及到哪些巧妙的方法。  仔细分析起来，内容还是蛮多。为了不繁杂，博文可能需要">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java ArrayList 源码分析（一）">
+<meta property="og:url" content="http://yoursite.com/2020/06/11/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/index.html">
 <meta property="og:site_name" content="Qisheng&#39;s Blog">
+<meta property="og:description" content="前言ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。  先自己简单实现一遍 对照库的实现，挨个分析库为什么要那么写，那么写有什么好处。 库实现，涉及到哪些巧妙的方法。  仔细分析起来，内容还是蛮多。为了不繁杂，博文可能需要">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://yoursite.com/qsblog.github.io/images/ArrayList.png">
+<meta property="article:published_time" content="2020-06-11T11:50:38.000Z">
+<meta property="article:modified_time" content="2020-06-12T06:42:12.533Z">
 <meta property="article:author" content="Qisheng">
+<meta property="article:tag" content="ArrayList 构造函数">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/qsblog.github.io/images/ArrayList.png">
 
 
 
@@ -115,13 +122,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/"/>
+  <link rel="canonical" href="http://yoursite.com/2020/06/11/Java-ArrayList-源码分析/"/>
 
 
 
 
 
-  <title>Qisheng's Blog</title>
+  <title>Java ArrayList 源码分析（一） | Qisheng's Blog</title>
   
 
 
@@ -149,8 +156,7 @@
     
   
 
-  <div class="container sidebar-position-left 
-  page-home">
+  <div class="container sidebar-position-left page-post-detail">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -233,9 +239,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-  <section id="posts" class="posts-expand">
+
+  <div id="posts" class="posts-expand">
     
-      
 
   
 
@@ -265,9 +271,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/qsblog.github.io/2020/06/11/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" itemprop="url">Java ArrayList 源码分析（一）</a></h1>
+          <h1 class="post-title" itemprop="name headline">Java ArrayList 源码分析（一）</h1>
         
 
         <div class="post-meta">
@@ -317,9 +321,7 @@
       
 
       
-        
-          
-            <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。</p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。</p>
 <ul>
 <li>先自己简单实现一遍</li>
 <li>对照库的实现，挨个分析库为什么要那么写，那么写有什么好处。</li>
@@ -388,8 +390,6 @@
 </ul>
 <h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p>stackoverflow <a href="https://stackoverflow.com/questions/13776576/why-does-the-arraylist-implementation-use-object" target="_blank" rel="noopener">https://stackoverflow.com/questions/13776576/why-does-the-arraylist-implementation-use-object</a><br>知乎 <a href="https://www.zhihu.com/question/20400700" target="_blank" rel="noopener">https://www.zhihu.com/question/20400700</a></p>
 
-          
-        
       
     </div>
     
@@ -404,165 +404,36 @@
 
     <footer class="post-footer">
       
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/qsblog.github.io/2020/06/03/iterable/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Qisheng">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/qsblog.github.io/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Qisheng's Blog">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/qsblog.github.io/2020/06/03/iterable/" itemprop="url">Python中的iterable和iterator</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">Posted on</span>
-              
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-06-03T20:04:51+08:00">
-                2020-06-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
+        <div class="post-tags">
           
-
+            <a href="/qsblog.github.io/tags/ArrayList-%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0/" rel="tag"># ArrayList 构造函数</a>
           
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
         </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>Python编程中，我们经常会遇到iterable和iterator的概念，二者之间既有区别又有联系。这篇博文就来详细说说这个话题。</p>
-<h2 id="说在前面"><a href="#说在前面" class="headerlink" title="说在前面"></a>说在前面</h2><p>迭代器在各种编程语言中都是一个重要的概念。它是对一个对象或数据集合进行遍历的一种抽象。比如一个列表，一个字典，如果需要挨个打印里面的元素，我们就可以针对它们创建一个迭代器，然后就可以很方便的进行遍历了。</p>
-<h2 id="Python的iterable和iterator"><a href="#Python的iterable和iterator" class="headerlink" title="Python的iterable和iterator"></a>Python的iterable和iterator</h2><p>Python中除了iterator对象还有iterable对象。我们知道iterator是迭代器，那iterable是个什么东西呢，它是可迭代对象。什么是可迭代对象？我理解就是可以利用迭代器对其进行遍历的东西。<br>Python中规定，只要类实现了__iter__方法并且该方法返回一个iterator的class就是iterable。</p>
-<h2 id="iterable"><a href="#iterable" class="headerlink" title="iterable"></a>iterable</h2><p>Python中的list, dict,tuple等基本类型都是iterable，执行下面的python代码可以看到list对象有__iter__方法。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dir([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>,])</span><br></pre></td></tr></table></figure>
-<p>下面我们构建一个自己的iterable,设定这个iterable基于一个字符串构建，切词形成一个可迭代的word集合，然后可以对里面的word进行迭代。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">class MyIteratable:</span><br><span class="line">    def __init__(self, string):</span><br><span class="line">        self.string &#x3D; string</span><br><span class="line"></span><br><span class="line">    # 这里要注意，返回一个iterator对象，利用这个iterator可以对该Myiterable进行迭代。</span><br><span class="line">    def __iter__(self):</span><br><span class="line">        return MyIterator(self.string)</span><br><span class="line"></span><br><span class="line">class MyIterator:</span><br><span class="line">    def __init__(self, string):</span><br><span class="line">        pass</span><br><span class="line">    def __next__(self):</span><br><span class="line">        pass</span><br></pre></td></tr></table></figure>
-
-<p>client代码如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">my_iterable &#x3D; MyIteratable(&quot;It&#39;s a test&quot;)</span><br><span class="line"></span><br><span class="line"># iter(my_iterable)会自动调用my_iterable.__iter__方法。python类中带有双下划线前后缀的方法叫Magic Methods, 类似的还有__init__, __next__, __repr__等等。</span><br><span class="line">my_iterator &#x3D; iter(my_iterable)</span><br><span class="line"></span><br><span class="line"># 下面就可以用my_iterator进行迭代了，具体怎么使用iterator进行迭代请看下面</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
-
-<h2 id="iterator"><a href="#iterator" class="headerlink" title="iterator"></a>iterator</h2><p>Python中只要实现了__next__方法的class叫iterator（严格来说，还需要实现__iter__，这个后面再讲）。每调用一次next(iterator), 就取出了一个元素。当遍历完最后一个元素后，还调用next(iterator)就会触发StopIteration异常。所以我们利用一个iterator进行迭代时，就有client代码如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># 通过iter(iterable)或者其它方法获取一个迭代器</span><br><span class="line">my_iterator &#x3D; iter(iterable)</span><br><span class="line">while True:</span><br><span class="line">    try:</span><br><span class="line">        item &#x3D; next(my_iterator) # 获取到一个元素</span><br><span class="line">    except StopIteration:</span><br><span class="line">        break</span><br></pre></td></tr></table></figure>
-<p>next(my_iterator)其实是调用了my_iterator.__next__方法。这个方法每次都需要返回一个元素。接下来，我们来完善上面class MyIterator里面的方法。__next__方法每次返回一个元素，当到达尾部时触发StopIteration异常。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">class MyIteratable:</span><br><span class="line">    def __init__(self, string):</span><br><span class="line">        self.string &#x3D; string</span><br><span class="line"></span><br><span class="line">    # 这里要注意，返回一个iterator对象，利用这个iterator可以对该Myiterable进行迭代。</span><br><span class="line">    def __iter__(self):</span><br><span class="line">        return MyIterator(self.string)</span><br><span class="line"></span><br><span class="line">class MyIterator:</span><br><span class="line">    def __init__(self, string):</span><br><span class="line">        self.words &#x3D; string.split()</span><br><span class="line">        self.index &#x3D; 0 # 每次迭代，迭代器都有个位置。</span><br><span class="line"></span><br><span class="line">    def __next__(self):</span><br><span class="line">        if self.index &lt; len(self.words):</span><br><span class="line">            item &#x3D; self.words[self.index]</span><br><span class="line">            self.index +&#x3D; 1</span><br><span class="line">            return item</span><br><span class="line">        else:</span><br><span class="line">            raise StopIteration()</span><br></pre></td></tr></table></figure>
-
-<p>再次回到上面使用iterator迭代一个iterable的client代码，先要获取iterable的iterator，然后在while循环里面遍历元素，while里面退出条件是捕获到StopIteration异常。我们可以看到，对一个iterable进行迭代太啰嗦了，那么能否有个简洁的方法呢？有！请看下面：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">for i in iterable:</span><br><span class="line">    print(i)</span><br></pre></td></tr></table></figure>
-<p>for in 语法就是对上面啰嗦写法的一个简写形式。for in是语言内部进行了上面那些啰嗦的操作。<br>好了，到现在，我们基本捋清了iterable和iterator的区别和联系了吧。总结如下：</p>
-<ul>
-<li>iterable是可迭代对象，实现了__iter__方法，该方法返回一个可以对自身进行迭代的迭代器。</li>
-<li>iterator是迭代器对象，实现了__next__方法，可以对该迭代器所关联的iterable进行迭代。</li>
-<li>iterable内部元素数量是可知的，而我们不能通过iterator知道其关联的iterable有多少数量，只能一步一步的next，最后触发StopIteration。</li>
-</ul>
-<h2 id="重要的一点-iterator也是一个iterable。"><a href="#重要的一点-iterator也是一个iterable。" class="headerlink" title="重要的一点, iterator也是一个iterable。"></a>重要的一点, iterator也是一个iterable。</h2><p>iterator还需要实现__iter__方法，而且该方法很简单就是返回自身，如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">class MyIterator:</span><br><span class="line">    def __init__(self, string):</span><br><span class="line">        self.words &#x3D; string.split()</span><br><span class="line">        self.index &#x3D; 0 # 每次迭代，迭代器都有个位置。</span><br><span class="line"></span><br><span class="line">    def __next__(self):</span><br><span class="line">        if self.index &lt; len(self.words):</span><br><span class="line">            item &#x3D; self.words(self.index)</span><br><span class="line">            self.index +&#x3D; 1</span><br><span class="line">            return item</span><br><span class="line">        else:</span><br><span class="line">            raise StopIteration()</span><br><span class="line"></span><br><span class="line">    def __iter__(self):</span><br><span class="line">        return self</span><br></pre></td></tr></table></figure>
-<p>iterator为什么要实现__iter__，而且大多数情况下都是返回self。是不是看起来很奇怪？如果没有这个__iter__函数，会不会有问题？这个问题我也是找了好多资料才想明白的。<br>情况是这样的，我们知道一个iterable可以应用在for in 语句中，更进一步，一个iterator也是可以应用在for in 语句中的。当应用在for in 中时，iterator就当做一个iterable使用了。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">my_list &#x3D; [1, 2, 3, 4]</span><br><span class="line">my_list_iter &#x3D; iter(my_list)</span><br><span class="line">for i in my_list_iter:</span><br><span class="line">    print(i)</span><br></pre></td></tr></table></figure>
-<p>__iter__必须返回一个迭代器，而一个iterator的__iter__函数，它要返回一个迭代器，必然是它自身。</p>
-<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
-<li>Python 3 Object-oriented Programming, 2nd Edition</li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
       
 
       
       
-        <div class="post-eof"></div>
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/qsblog.github.io/2020/06/03/iterable/" rel="next" title="Python中的iterable和iterator">
+                <i class="fa fa-chevron-left"></i> Python中的iterable和iterator
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
       
     </footer>
   </div>
@@ -572,10 +443,11 @@
   </article>
 
 
-    
-  </section>
 
-  
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -583,6 +455,10 @@
 
 
           
+
+  
+
+
 
         </div>
         
@@ -603,8 +479,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -655,6 +540,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#顺序表怎么实现"><span class="nav-number">2.</span> <span class="nav-text">顺序表怎么实现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#定义要实现的ArrayList功能。"><span class="nav-number">2.1.</span> <span class="nav-text">定义要实现的ArrayList功能。</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#构造"><span class="nav-number">2.1.1.</span> <span class="nav-text">构造</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#增"><span class="nav-number">2.1.2.</span> <span class="nav-text">增</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#删"><span class="nav-number">2.1.3.</span> <span class="nav-text">删</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#改"><span class="nav-number">2.1.4.</span> <span class="nav-text">改</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#查"><span class="nav-number">2.1.5.</span> <span class="nav-text">查</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#初步实现"><span class="nav-number">2.2.</span> <span class="nav-text">初步实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#对比分析"><span class="nav-number">2.3.</span> <span class="nav-text">对比分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ArrayList构造方法"><span class="nav-number">2.3.1.</span> <span class="nav-text">ArrayList构造方法</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#ArrayList继承实现关系层次较深。"><span class="nav-number">2.3.1.1.</span> <span class="nav-text">ArrayList继承实现关系层次较深。</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#参考资料"><span class="nav-number">3.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -795,6 +696,10 @@
 
 
   
+  <script type="text/javascript" src="/qsblog.github.io/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/qsblog.github.io/js/src/post-details.js?v=5.1.4"></script>
+
+
 
   
 
