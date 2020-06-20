@@ -40,7 +40,7 @@
 
   
   
-  <link href="/qsblog/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+  <link href="/blog/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
 
 
 
@@ -48,21 +48,21 @@
 
 
 
-<link href="/qsblog/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+<link href="/blog/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
 
-<link href="/qsblog/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
-
-
-  <link rel="apple-touch-icon" sizes="180x180" href="/qsblog/images/apple-touch-icon-next.png?v=5.1.4">
+<link href="/blog/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
 
 
-  <link rel="icon" type="image/png" sizes="32x32" href="/qsblog/images/favicon-32x32-next.png?v=5.1.4">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png?v=5.1.4">
 
 
-  <link rel="icon" type="image/png" sizes="16x16" href="/qsblog/images/favicon-16x16-next.png?v=5.1.4">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png?v=5.1.4">
 
 
-  <link rel="mask-icon" href="/qsblog/images/logo.svg?v=5.1.4" color="#222">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/blog/images/logo.svg?v=5.1.4" color="#222">
 
 
 
@@ -86,20 +86,20 @@
 <meta property="og:site_name" content="Qisheng&#39;s Blog">
 <meta property="og:description" content="前言ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。  先自己简单实现一遍 对照库的实现，挨个分析库为什么要那么写，那么写有什么好处。 库实现，涉及到哪些巧妙的方法。  仔细分析起来，内容还是蛮多。为了不繁杂，博文可能需要">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://yangqisheng.github.io/qsblog.github.io/images/ArrayList.png">
+<meta property="og:image" content="https://yangqisheng.github.io/blog/images/ArrayList.png">
 <meta property="article:published_time" content="2020-06-11T11:50:38.000Z">
-<meta property="article:modified_time" content="2020-06-12T06:42:12.533Z">
+<meta property="article:modified_time" content="2020-06-20T09:48:38.086Z">
 <meta property="article:author" content="Qisheng">
 <meta property="article:tag" content="ArrayList 构造函数">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://yangqisheng.github.io/qsblog.github.io/images/ArrayList.png">
+<meta name="twitter:image" content="https://yangqisheng.github.io/blog/images/ArrayList.png">
 
 
 
 <script type="text/javascript" id="hexo.configurations">
   var NexT = window.NexT || {};
   var CONFIG = {
-    root: '/qsblog/',
+    root: '/blog/',
     scheme: 'Gemini',
     version: '5.1.4',
     sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
@@ -165,7 +165,7 @@
     
 
     <div class="custom-logo-site-title">
-      <a href="/qsblog/"  class="brand" rel="start">
+      <a href="/blog/"  class="brand" rel="start">
         <span class="logo-line-before"><i></i></span>
         <span class="site-title">Qisheng's Blog</span>
         <span class="logo-line-after"><i></i></span>
@@ -193,7 +193,7 @@
       
         
         <li class="menu-item menu-item-home">
-          <a href="/qsblog/" rel="section">
+          <a href="/blog/" rel="section">
             
               <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
             
@@ -203,7 +203,7 @@
       
         
         <li class="menu-item menu-item-about">
-          <a href="/qsblog/about" rel="section">
+          <a href="/blog/about" rel="section">
             
               <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
             
@@ -213,7 +213,7 @@
       
         
         <li class="menu-item menu-item-archives">
-          <a href="/qsblog/archives/" rel="section">
+          <a href="/blog/archives/" rel="section">
             
               <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
             
@@ -254,12 +254,12 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://yangqisheng.github.io/qsblog/2020/06/11/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">
+    <link itemprop="mainEntityOfPage" href="https://yangqisheng.github.io/blog/2020/06/11/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Qisheng">
       <meta itemprop="description" content="">
-      <meta itemprop="image" content="/qsblog/images/avatar.gif">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
     </span>
 
     <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
@@ -362,7 +362,7 @@
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br></pre></td><td class="code"><pre><span class="line">package mypackage;</span><br><span class="line"></span><br><span class="line">public class MyArrayList&lt;E&gt; &#123;</span><br><span class="line">    private E[] elementData;</span><br><span class="line">    private int size;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 创建空的list</span><br><span class="line">    public MyArrayList() &#123;</span><br><span class="line">        elementData &#x3D; new E[0];</span><br><span class="line">        size &#x3D; 0;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 创建一个容量为capacity的list，为什么需要这样一个初始容量的构造函数？</span><br><span class="line">    &#x2F;&#x2F; 只提供默认空构造函数，然后调用增加元素方法进行内部数组申请，不也行么？</span><br><span class="line">    public MyArrayList(int capacity) &#123;</span><br><span class="line">        elementData &#x3D; new E[capacity];</span><br><span class="line">        size &#x3D; 0;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 基于其它集合创建顺序表</span><br><span class="line">    public MyArrayList(MyArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        System.arraycopy(c.elementData, 0, elementData, 0, c.size());</span><br><span class="line">        size &#x3D; c.size();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 在末尾增加元素</span><br><span class="line">    public void add(E e) &#123;</span><br><span class="line">        if (elementData.length &#x3D;&#x3D; size) &#123;</span><br><span class="line">            ensureCapacity(size + 1);</span><br><span class="line">        &#125;</span><br><span class="line">        elementData[size++] &#x3D; e;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 在某个位置增加元素，要判断参数合法性，如果不合法，是抛异常呢，还是返回错误值呢</span><br><span class="line">    public void add(int index, E e) &#123;</span><br><span class="line">        &#x2F;&#x2F; check arguments,校验index是否 &lt; 0 或者 &gt; size</span><br><span class="line">        &#x2F;&#x2F; ...</span><br><span class="line">        </span><br><span class="line">        if (elementData.length &#x3D;&#x3D; size) &#123;</span><br><span class="line">            ensureCapacity(size + 1);</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        &#x2F;&#x2F; 将index及其后面的元素都往后错一位。System.arraycopy支持区间重叠拷贝。</span><br><span class="line">        System.arraycopy(...);</span><br><span class="line">        elementData[index] &#x3D; e;</span><br><span class="line">        size +&#x3D; 1;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 在某个位置增加另外一个集合内所有元素</span><br><span class="line">    public void add(int index, MyArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        &#x2F;&#x2F; check arguments</span><br><span class="line">        &#x2F;&#x2F; ...</span><br><span class="line">        </span><br><span class="line">        if (elementData.length &lt; size + c.size()) &#123;</span><br><span class="line">            ensureCapacity(size + c.size());</span><br><span class="line">        &#125;</span><br><span class="line">        &#x2F;&#x2F; 先将index往后的元素往后挪，为新元素腾开空位。</span><br><span class="line">        System.copyarray(...);</span><br><span class="line">        &#x2F;&#x2F; 再讲c里面的元素copy过来</span><br><span class="line">        System.copyarray(...);</span><br><span class="line">        size +&#x3D; c.size();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 删除某个位置元素，如果产生不合法，是否要抛异常。</span><br><span class="line">    &#x2F;&#x2F; 函数返回值为void是否可以？</span><br><span class="line">    public void remove(int index) &#123;</span><br><span class="line">        &#x2F;&#x2F; check argument</span><br><span class="line">        &#x2F;&#x2F; ...</span><br><span class="line">        </span><br><span class="line">        &#x2F;&#x2F; 将index及其后面的元素往前移动一个位置, memmove操作。</span><br><span class="line">        &#x2F;&#x2F; 从这里可以看到对于ArrayList，增加，删除操作是O(n)时间复杂度的。</span><br><span class="line">        System.copyarray(...); </span><br><span class="line">        size -&#x3D; 1;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 从集合内删除其它集合内的元素。</span><br><span class="line">    &#x2F;&#x2F; ArrayList的实现，还有个boolean参数，控制开关，删除包含在c中的元素，还是删除不包含在c中的元素。</span><br><span class="line">    &#x2F;&#x2F; 可以看做为控制两个集合之差的形式是 A - B 还是 B - A。 </span><br><span class="line">    public void remove(MyArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        E[] newElementData &#x3D; new E[elementData.length]</span><br><span class="line">        int r &#x3D; 0;</span><br><span class="line">        int w &#x3D; 0;</span><br><span class="line">        for (int r &#x3D; 0; r &lt; size; ++r) &#123;</span><br><span class="line">            if (!c.contains(elementData[r])) &#123;</span><br><span class="line">                newElementData[w++] &#x3D; elementData[r];</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        elementData &#x3D; newElementData;</span><br><span class="line">        size &#x3D; w;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 修改某个位置元素值</span><br><span class="line">    public set(int index, E e) &#123;</span><br><span class="line">        &#x2F;&#x2F; check argument</span><br><span class="line">        &#x2F;&#x2F; ...</span><br><span class="line">        elementData[index] &#x3D; e;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 查询</span><br><span class="line">    &#x2F;&#x2F; 如果index不合法，抛异常。</span><br><span class="line">    public E get(int index) &#123;</span><br><span class="line">        &#x2F;&#x2F; check argument</span><br><span class="line">        &#x2F;&#x2F; ...</span><br><span class="line">        return elementData[index];</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 查询某个元素所在位置</span><br><span class="line">    public int indexOf(E e) &#123;</span><br><span class="line">        for (int i &#x3D; 0; i &lt; size; ++i) &#123;</span><br><span class="line">            if (elementData[i].equals(e)) &#123;</span><br><span class="line">                return i;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        return -1;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 判断某元素是否在表中</span><br><span class="line">    public boolean contains(E e) &#123;</span><br><span class="line">        return indexOf(e) !&#x3D; -1;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <h2 id="对比分析"><a href="#对比分析" class="headerlink" title="对比分析"></a>对比分析</h2><p>将自己写的初步实现代码与JDK中的ArrayList做比较，对每一簇功能细致的比较、分析，搞清楚JDK1.8实现的机理。下面主要讨论下JDK中ArrayList的构造方法，它们与自己实现的preliminary版本区别在哪。</p>
-<h3 id="ArrayList构造方法"><a href="#ArrayList构造方法" class="headerlink" title="ArrayList构造方法"></a>ArrayList构造方法</h3><h4 id="ArrayList继承实现关系层次较深。"><a href="#ArrayList继承实现关系层次较深。" class="headerlink" title="ArrayList继承实现关系层次较深。"></a>ArrayList继承实现关系层次较深。</h4><p><img src="/qsblog.github.io/images/ArrayList.png" alt=""></p>
+<h3 id="ArrayList构造方法"><a href="#ArrayList构造方法" class="headerlink" title="ArrayList构造方法"></a>ArrayList构造方法</h3><h4 id="ArrayList继承实现关系层次较深。"><a href="#ArrayList继承实现关系层次较深。" class="headerlink" title="ArrayList继承实现关系层次较深。"></a>ArrayList继承实现关系层次较深。</h4><p><img src="/blog/images/ArrayList.png" alt=""></p>
 <p>为什么要搞这么复杂的继承及实现关系呢，以后再说。先看几个问题：</p>
 <ol>
 <li><p>ArrayList extends AbstractList implements List, AbstractList其实已经implements List了，为什么ArrayList还要implements List?</p>
@@ -406,7 +406,7 @@
       
         <div class="post-tags">
           
-            <a href="/qsblog/tags/ArrayList-%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0/" rel="tag"># ArrayList 构造函数</a>
+            <a href="/blog/tags/ArrayList-%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0/" rel="tag"># ArrayList 构造函数</a>
           
         </div>
       
@@ -419,7 +419,7 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/qsblog/2020/06/03/iterable/" rel="next" title="Python中的iterable和iterator">
+              <a href="/blog/2020/06/03/iterable/" rel="next" title="Python中的iterable和iterator">
                 <i class="fa fa-chevron-left"></i> Python中的iterable和iterator
               </a>
             
@@ -429,7 +429,7 @@
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/qsblog/2020/06/18/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/" rel="prev" title="Java-ArrayList-源码分析(二)">
+              <a href="/blog/2020/06/18/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/" rel="prev" title="Java-ArrayList-源码分析(二)">
                 Java-ArrayList-源码分析(二) <i class="fa fa-chevron-right"></i>
               </a>
             
@@ -506,7 +506,7 @@
             
               <div class="site-state-item site-state-posts">
               
-                <a href="/qsblog/archives/%7C%7C%20archive">
+                <a href="/blog/archives/%7C%7C%20archive">
               
                   <span class="site-state-item-count">3</span>
                   <span class="site-state-item-name">posts</span>
@@ -651,64 +651,64 @@
 
   
   
-    <script type="text/javascript" src="/qsblog/lib/jquery/index.js?v=2.1.3"></script>
+    <script type="text/javascript" src="/blog/lib/jquery/index.js?v=2.1.3"></script>
   
 
   
   
-    <script type="text/javascript" src="/qsblog/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+    <script type="text/javascript" src="/blog/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
   
 
   
   
-    <script type="text/javascript" src="/qsblog/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+    <script type="text/javascript" src="/blog/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
   
 
   
   
-    <script type="text/javascript" src="/qsblog/lib/velocity/velocity.min.js?v=1.2.1"></script>
+    <script type="text/javascript" src="/blog/lib/velocity/velocity.min.js?v=1.2.1"></script>
   
 
   
   
-    <script type="text/javascript" src="/qsblog/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+    <script type="text/javascript" src="/blog/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
   
 
   
   
-    <script type="text/javascript" src="/qsblog/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+    <script type="text/javascript" src="/blog/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
   
-
-
-  
-
-
-  <script type="text/javascript" src="/qsblog/js/src/utils.js?v=5.1.4"></script>
-
-  <script type="text/javascript" src="/qsblog/js/src/motion.js?v=5.1.4"></script>
-
-
-
-  
-  
-
-
-  <script type="text/javascript" src="/qsblog/js/src/affix.js?v=5.1.4"></script>
-
-  <script type="text/javascript" src="/qsblog/js/src/schemes/pisces.js?v=5.1.4"></script>
-
-
-
-  
-  <script type="text/javascript" src="/qsblog/js/src/scrollspy.js?v=5.1.4"></script>
-<script type="text/javascript" src="/qsblog/js/src/post-details.js?v=5.1.4"></script>
-
 
 
   
 
 
-  <script type="text/javascript" src="/qsblog/js/src/bootstrap.js?v=5.1.4"></script>
+  <script type="text/javascript" src="/blog/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/blog/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/blog/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/blog/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/blog/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/blog/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/blog/js/src/bootstrap.js?v=5.1.4"></script>
 
 
 
