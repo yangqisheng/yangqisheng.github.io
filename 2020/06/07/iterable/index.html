@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="python iterable iterator," />
 
 
 
@@ -79,16 +79,17 @@
 
 
 
-<meta name="description" content="Python编程中，我们经常会遇到iterable和iterator的概念，二者之间既有区别又有联系。这篇博文就来详细说说这个话题。 说在前面迭代器在各种编程语言中都是一个重要的概念。它是对一个对象或数据集合进行遍历的一种抽象。比如一个列表，一个字典，如果需要挨个打印里面的元素，我们就可以针对它们创建一个迭代器，然后就可以很方便的进行遍历了。 Python的iterable和iteratorPyt">
+<meta name="description" content="Python编程中，我们经常会遇到iterable和iterator的概念，二者之间既有区别又有联系。这篇博文就来详细说说这个话题。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Python中的iterable和iterator">
-<meta property="og:url" content="https://yangqisheng.github.io/2020/06/03/iterable/index.html">
+<meta property="og:url" content="https://yangqisheng.github.io/2020/06/07/iterable/index.html">
 <meta property="og:site_name" content="Qisheng&#39;s Blog">
-<meta property="og:description" content="Python编程中，我们经常会遇到iterable和iterator的概念，二者之间既有区别又有联系。这篇博文就来详细说说这个话题。 说在前面迭代器在各种编程语言中都是一个重要的概念。它是对一个对象或数据集合进行遍历的一种抽象。比如一个列表，一个字典，如果需要挨个打印里面的元素，我们就可以针对它们创建一个迭代器，然后就可以很方便的进行遍历了。 Python的iterable和iteratorPyt">
+<meta property="og:description" content="Python编程中，我们经常会遇到iterable和iterator的概念，二者之间既有区别又有联系。这篇博文就来详细说说这个话题。">
 <meta property="og:locale" content="en_US">
-<meta property="article:published_time" content="2020-06-03T12:04:51.210Z">
-<meta property="article:modified_time" content="2020-06-03T12:04:51.210Z">
+<meta property="article:published_time" content="2020-06-07T12:50:38.000Z">
+<meta property="article:modified_time" content="2020-06-21T07:37:12.739Z">
 <meta property="article:author" content="Qisheng">
+<meta property="article:tag" content="python iterable iterator">
 <meta name="twitter:card" content="summary">
 
 
@@ -119,7 +120,7 @@
 
 
 
-  <link rel="canonical" href="https://yangqisheng.github.io/2020/06/03/iterable/"/>
+  <link rel="canonical" href="https://yangqisheng.github.io/2020/06/07/iterable/"/>
 
 
 
@@ -251,7 +252,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://yangqisheng.github.io/2020/06/03/iterable/">
+    <link itemprop="mainEntityOfPage" href="https://yangqisheng.github.io/2020/06/07/iterable/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Qisheng">
@@ -280,8 +281,8 @@
               
                 <span class="post-meta-item-text">Posted on</span>
               
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-06-03T20:04:51+08:00">
-                2020-06-03
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-06-07T20:50:38+08:00">
+                2020-06-07
               </time>
             
 
@@ -299,9 +300,9 @@
                 <span class="post-meta-item-icon">
                   <i class="fa fa-comment-o"></i>
                 </span>
-                <a href="/2020/06/03/iterable/#comments" itemprop="discussionUrl">
+                <a href="/2020/06/07/iterable/#comments" itemprop="discussionUrl">
                   <span class="post-comments-count disqus-comment-count"
-                        data-disqus-identifier="2020/06/03/iterable/" itemprop="commentCount"></span>
+                        data-disqus-identifier="2020/06/07/iterable/" itemprop="commentCount"></span>
                 </a>
               </span>
             
@@ -330,6 +331,8 @@
 
       
         <p>Python编程中，我们经常会遇到iterable和iterator的概念，二者之间既有区别又有联系。这篇博文就来详细说说这个话题。</p>
+<a id="more"></a>
+
 <h2 id="说在前面"><a href="#说在前面" class="headerlink" title="说在前面"></a>说在前面</h2><p>迭代器在各种编程语言中都是一个重要的概念。它是对一个对象或数据集合进行遍历的一种抽象。比如一个列表，一个字典，如果需要挨个打印里面的元素，我们就可以针对它们创建一个迭代器，然后就可以很方便的进行遍历了。</p>
 <h2 id="Python的iterable和iterator"><a href="#Python的iterable和iterator" class="headerlink" title="Python的iterable和iterator"></a>Python的iterable和iterator</h2><p>Python中除了iterator对象还有iterable对象。我们知道iterator是迭代器，那iterable是个什么东西呢，它是可迭代对象。什么是可迭代对象？我理解就是可以利用迭代器对其进行遍历的东西。<br>Python中规定，只要类实现了__iter__方法并且该方法返回一个iterator的class就是iterable。</p>
 <h2 id="iterable"><a href="#iterable" class="headerlink" title="iterable"></a>iterable</h2><p>Python中的list, dict,tuple等基本类型都是iterable，执行下面的python代码可以看到list对象有__iter__方法。</p>
@@ -375,6 +378,12 @@
     
 
     <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/python-iterable-iterator/" rel="tag"># python iterable iterator</a>
+          
+        </div>
       
 
       
@@ -493,7 +502,7 @@
               
               <div class="site-state-item site-state-tags">
                 
-                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-count">3</span>
                   <span class="site-state-item-name">tags</span>
                 
               </div>
@@ -696,8 +705,8 @@
     
       <script type="text/javascript">
         var disqus_config = function () {
-          this.page.url = 'https://yangqisheng.github.io/2020/06/03/iterable/';
-          this.page.identifier = '2020/06/03/iterable/';
+          this.page.url = 'https://yangqisheng.github.io/2020/06/07/iterable/';
+          this.page.identifier = '2020/06/07/iterable/';
           this.page.title = 'Python中的iterable和iterator';
         };
         var d = document, s = d.createElement('script');

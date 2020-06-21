@@ -267,7 +267,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2020/06/18/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/" itemprop="url">Java-ArrayList-源码分析(二)</a></h1>
+                <a class="post-title-link" href="/2020/06/18/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/" itemprop="url">Java ArrayList 源码分析(二)</a></h1>
         
 
         <div class="post-meta">
@@ -329,53 +329,14 @@
 
       
         
-          
-            <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>上一篇讲了ArrayList的几个构造函数。ArrayList的增删改查的实现，比较简单。本篇先讲一个代码效率问题，再着重讲讲ArrayList的迭代器实现。</p>
-<h1 id="查询一个对象的索引位置"><a href="#查询一个对象的索引位置" class="headerlink" title="查询一个对象的索引位置"></a>查询一个对象的索引位置</h1><p>ArrayList的indexOf方法，接收一个Object，返回该Object在ArrayList中的位置。我们看下ArrayList的实现，如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 写法一</span><br><span class="line">public int indexOf(Object o) &#123;</span><br><span class="line">    if (o &#x3D;&#x3D; null) &#123;</span><br><span class="line">        for (int i &#x3D; 0; i &lt; size; i++)</span><br><span class="line">            if (elementData[i]&#x3D;&#x3D;null)</span><br><span class="line">                return i;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        for (int i &#x3D; 0; i &lt; size; i++)</span><br><span class="line">            if (o.equals(elementData[i]))</span><br><span class="line">                return i;</span><br><span class="line">    &#125;</span><br><span class="line">    return -1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>我们可以看到，它是先判断o是否为null，根据结果分别走两个分支，在分支里面用for循环去挨个判断elementData中元素是否等于o。初步看，代码里面好像for循环写了两个，重复了，我们也可以在一个for循环里面判断，写成下面这种形式:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 写法二</span><br><span class="line">public int indexOf(Object o) &#123;</span><br><span class="line">    for (int i &#x3D; 0; i &lt; size; i++) &#123;</span><br><span class="line">        if (o &#x3D;&#x3D; null) &#123;</span><br><span class="line">            if (elementData[i] &#x3D;&#x3D; null)</span><br><span class="line">                return i;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            if (o.equals(elementData[i]))</span><br><span class="line">                return i;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    return -1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>看起来，写法二比写法一少了一句for循环，但是写法二执行效率差一点，每次迭代都要判断一个o是否为null；而写法一只要判断一次o是否为null。所以总的下来，写法一节省了n/2 - 1次比较操作。</p>
-<h1 id="迭代器和内部类"><a href="#迭代器和内部类" class="headerlink" title="迭代器和内部类"></a>迭代器和内部类</h1><p>ArrayList的迭代器是内部类实现的。迭代器是内部类的绝佳的应用场景。我们分几步来说明下：</p>
-<ul>
-<li>为什么要迭代器，不用迭代器，可不可以对ArrayList进行迭代。</li>
-<li>迭代器不用内部类实现，用独立的类实现会怎样。</li>
-</ul>
-<h2 id="为什么要迭代器"><a href="#为什么要迭代器" class="headerlink" title="为什么要迭代器"></a>为什么要迭代器</h2><p>如果不用迭代器，也可以对ArrayList进行迭代。我们直接让ArrayList implements Iterator，增加一个成员变量来记录迭代的位置。这个时候ArrayList “is-a” Iterator。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">class ArrayList&lt;E&gt; implements Iterator &#123;</span><br><span class="line">    private int next &#x3D; 0; &#x2F;&#x2F; index of the next element to return</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; 其它成员</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">   @Override</span><br><span class="line">   boolean hasNext(); &#x2F;&#x2F; 是否迭代到尾部</span><br><span class="line"></span><br><span class="line">   @Override</span><br><span class="line">   E next();          &#x2F;&#x2F; 返回当前元素，并且后移迭代位置</span><br><span class="line"></span><br><span class="line">   &#x2F;&#x2F; 其它方法</span><br><span class="line">   ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;* client 对ArrayList进行迭代的时候是这样的 *&#x2F;</span><br><span class="line">ArrayList a &#x3D; new ArrayList()</span><br><span class="line">&#x2F;&#x2F; 对a进行了很多插入删除操作后</span><br><span class="line">while (a.hasNext()) &#123;</span><br><span class="line">    doSomething(a.next());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这种实现方式会有什么问题？</p>
-<ul>
-<li>只支持单向迭代。</li>
-<li>一次只支持一个迭代。如果想同时进行两个迭代（比如一个快的，一个慢的），不支持。</li>
-</ul>
-<h2 id="不用内部类，用单独的类实现"><a href="#不用内部类，用单独的类实现" class="headerlink" title="不用内部类，用单独的类实现"></a>不用内部类，用单独的类实现</h2><p>假如用单独的ArrayListIterator类实现，那么ArrayListIterator类一定要关联一个ArrayList。如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">class ArrayListIterator&lt;E&gt; implements Iterator &#123;</span><br><span class="line">    private int next;     &#x2F;&#x2F; index of the next element to return</span><br><span class="line">    private ArrayList&lt;E&gt; c; &#x2F;&#x2F; 迭代器需要关联的集合</span><br><span class="line"></span><br><span class="line">    &lt;E&gt; ArrayListIterator(ArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        next &#x3D; 0;</span><br><span class="line">        this.c &#x3D; c;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    boolean hasNext() &#123;</span><br><span class="line">        return next !&#x3D; c.size();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    E next() &#123;</span><br><span class="line">        return c.get(next++)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>你还可以实现一个逆向迭代器如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">class ReverseArrayListIterator&lt;E&gt; implements Iterator &#123;</span><br><span class="line">    private int next;     &#x2F;&#x2F; index of the next element to return</span><br><span class="line">    private ArrayList&lt;E&gt; c; &#x2F;&#x2F; 迭代器需要关联的集合</span><br><span class="line"></span><br><span class="line">    &lt;E&gt; ReverseArrayListIterator(ArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        next &#x3D; c.size();</span><br><span class="line">        this.c &#x3D; c;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    boolean hasNext() &#123;</span><br><span class="line">        return next !&#x3D; -1;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    E next() &#123;</span><br><span class="line">        return c.get(next--);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-<p>这种方式，貌似解决了之前的“只能单向迭代”以及一次只能用一个迭代器两个问题。但是产生了新的问题：</p>
-<ul>
-<li>Iterator中的每个方法都要访问及操作内部集合的内部数据，但是都是通过Collection的public方法，不能直接操作Collection内部数据，不仅效率低，而且访问权限受限制。<br>这种实现方式，其实已经很接近内部类的实现方式了。内部类的实现方式解决了访问集合内部数据的限制问题。</li>
-</ul>
-<h2 id="看内部类的实现方法怎么表演"><a href="#看内部类的实现方法怎么表演" class="headerlink" title="看内部类的实现方法怎么表演"></a>看内部类的实现方法怎么表演</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">class ArrayList&lt;E&gt; &#123;</span><br><span class="line">    Object[] elementData;</span><br><span class="line">    private int size;</span><br><span class="line">    &#x2F;&#x2F; 其它成员及方法</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    class ListItr implements Iterator &#123;</span><br><span class="line">        private int next &#x3D; 0;  &#x2F;&#x2F; index of the next element to return</span><br><span class="line"></span><br><span class="line">        @Override</span><br><span class="line">        boolean hasNext() &#123;</span><br><span class="line">            return next &#x3D;&#x3D; size; &#x2F;&#x2F; 内部类可以直接访问外部类任何元素，包括成员和方法</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        @Override</span><br><span class="line">        E next() &#123;</span><br><span class="line">            return elementData[next++];</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Iterator iterator() &#123;</span><br><span class="line">        return new ListItr();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;* Client 调用代码*&#x2F;</span><br><span class="line">ArrayList&lt;String&gt; words &#x3D; ArrayList&lt;&gt;();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 插入删除一些String</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">Iterator itr &#x3D; words.iterator();</span><br><span class="line">while (itr.hasNext()) &#123;</span><br><span class="line">    doSomething(itr.next());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>内部类实现的优势：</p>
-<ul>
-<li>迭代器(内部类)可以直接访问集合(外部类)数据，效率高。</li>
-<li>迭代器实现放在集合类内部，代码组织更好。</li>
-<li>也可以在集合内部创建各种迭代器类。</li>
-</ul>
-<p>为什么内部类能够无障碍访问外部类元素，因为内部类有个隐藏的引用，指向外部类对象。通过这个引用就可以访问到外部类对象的元素。</p>
-<h2 id="内部类杀手锏"><a href="#内部类杀手锏" class="headerlink" title="内部类杀手锏"></a>内部类杀手锏</h2><blockquote>
-<p>如果没有内部类提供的、可以继承多个具体的或抽象的类的能力，一些设计与编程问题就很难解决。从这个角度看，内部类使得多重继承的解决方案变得完整。接口解决了部分问题，而内部类有效地实现了“多重继承”。也就是说，内部类允许继承多个非接口类型（类或抽象类）。</p>
-</blockquote>
-<p>我们知道Java中没有多继承，只有单继承多implements。有人可能会说，可以implements多个接口，不就相当于多继承吗？非也。接口中不能有成员变量，也就是说一个类，只能从一个父类继承成员变量。那有什么办法能让达到多继承的效果呢？用内部类。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">class A &#123;</span><br><span class="line">    private int i;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class B &#123;</span><br><span class="line">    private int j;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class C extends A &#123;</span><br><span class="line">    B makeB() &#123;</span><br><span class="line">        &#x2F;&#x2F; 返回匿名内部类</span><br><span class="line">        return new B() &#123;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;* Client 代码*&#x2F;</span><br><span class="line">C c;</span><br><span class="line">B b &#x3D; c.makeB(); &#x2F;&#x2F; 这个b可以看做B的一个匿名子类的对象，同时它的内部又有一个隐藏的指向C对象的引用。C又是A的子类。</span><br></pre></td></tr></table></figure>
-<p>通过这种方式，可以达到多继承的效果。细节可以参看 <em>Thinking in java On Java 8</em></p>
-<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p>Thinking in java on java 8</p>
-
-          
+          <p>上一篇讲了ArrayList的几个构造函数。ArrayList的增删改查的实现，比较简单。本篇先讲一个代码效率问题，再着重讲讲ArrayList的迭代器实现。</p>
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2020/06/18/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/#more" rel="contents">
+              Read more &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
         
       
     </div>
@@ -503,77 +464,20 @@
 
       
         
-          
-            <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。</p>
+          <p>ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。</p>
 <ul>
 <li>先自己简单实现一遍</li>
 <li>对照库的实现，挨个分析库为什么要那么写，那么写有什么好处。</li>
 <li>库实现，涉及到哪些巧妙的方法。</li>
 </ul>
 <p>仔细分析起来，内容还是蛮多。为了不繁杂，博文可能需要分成多个部分，每个部分分析ArrayList中一簇功能。<br>本篇第一篇，先总体概览，再说说ArrayList Constructor。</p>
-<h1 id="顺序表怎么实现"><a href="#顺序表怎么实现" class="headerlink" title="顺序表怎么实现"></a>顺序表怎么实现</h1><p>先考虑一下，如果不去看ArrayList的库实现，要自己写一个ArrayList，我们要怎么做。</p>
-<h2 id="定义要实现的ArrayList功能。"><a href="#定义要实现的ArrayList功能。" class="headerlink" title="定义要实现的ArrayList功能。"></a>定义要实现的ArrayList功能。</h2><p>既然是个顺序表，所需功能大体离不开增删改查，再加上构造函数。</p>
-<h3 id="构造"><a href="#构造" class="headerlink" title="构造"></a>构造</h3><ul>
-<li>构造一个空的表。</li>
-<li>构造一个有一定容量的表。</li>
-<li>通过一个其它集合构造一个顺序表，将集合中元素挨个塞进顺序表。</li>
-</ul>
-<h3 id="增"><a href="#增" class="headerlink" title="增"></a>增</h3><p>顺序表增加的操作，一般来说，有：</p>
-<ul>
-<li>在末尾增加一个元素。</li>
-<li>在某个位置增加一个元素。</li>
-<li>将其它集合里面的元素批量增加到末尾。</li>
-<li>将其它集合里面的元素批量增加到某个位置。</li>
-</ul>
-<h3 id="删"><a href="#删" class="headerlink" title="删"></a>删</h3><p>顺序表删除的操作，一般来说，有：</p>
-<ul>
-<li>删除某个位置上的元素。</li>
-<li>删除一个位置区间内所有元素。</li>
-<li>从顺序表中删除值为x的个元素。</li>
-<li>删除所有元素， 即清空。</li>
-</ul>
-<h3 id="改"><a href="#改" class="headerlink" title="改"></a>改</h3><p>顺序表修改的操作，有：</p>
-<ul>
-<li>修改某个位置上的元素。</li>
-</ul>
-<h3 id="查"><a href="#查" class="headerlink" title="查"></a>查</h3><ul>
-<li>获取某个位置上的元素。</li>
-<li>查找某个元素在顺序表中的位置。</li>
-<li>判断值为x的元素是否包含在顺序表中。</li>
-</ul>
-<h2 id="初步实现"><a href="#初步实现" class="headerlink" title="初步实现"></a>初步实现</h2><p>由于类功能较简单，我们就直接写代码原型。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br></pre></td><td class="code"><pre><span class="line">package mypackage;</span><br><span class="line"></span><br><span class="line">public class MyArrayList&lt;E&gt; &#123;</span><br><span class="line">    private E[] elementData;</span><br><span class="line">    private int size;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 创建空的list</span><br><span class="line">    public MyArrayList() &#123;</span><br><span class="line">        elementData &#x3D; new E[0];</span><br><span class="line">        size &#x3D; 0;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 创建一个容量为capacity的list，为什么需要这样一个初始容量的构造函数？</span><br><span class="line">    &#x2F;&#x2F; 只提供默认空构造函数，然后调用增加元素方法进行内部数组申请，不也行么？</span><br><span class="line">    public MyArrayList(int capacity) &#123;</span><br><span class="line">        elementData &#x3D; new E[capacity];</span><br><span class="line">        size &#x3D; 0;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 基于其它集合创建顺序表</span><br><span class="line">    public MyArrayList(MyArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        System.arraycopy(c.elementData, 0, elementData, 0, c.size());</span><br><span class="line">        size &#x3D; c.size();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 在末尾增加元素</span><br><span class="line">    public void add(E e) &#123;</span><br><span class="line">        if (elementData.length &#x3D;&#x3D; size) &#123;</span><br><span class="line">            ensureCapacity(size + 1);</span><br><span class="line">        &#125;</span><br><span class="line">        elementData[size++] &#x3D; e;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 在某个位置增加元素，要判断参数合法性，如果不合法，是抛异常呢，还是返回错误值呢</span><br><span class="line">    public void add(int index, E e) &#123;</span><br><span class="line">        &#x2F;&#x2F; check arguments,校验index是否 &lt; 0 或者 &gt; size</span><br><span class="line">        &#x2F;&#x2F; ...</span><br><span class="line">        </span><br><span class="line">        if (elementData.length &#x3D;&#x3D; size) &#123;</span><br><span class="line">            ensureCapacity(size + 1);</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        &#x2F;&#x2F; 将index及其后面的元素都往后错一位。System.arraycopy支持区间重叠拷贝。</span><br><span class="line">        System.arraycopy(...);</span><br><span class="line">        elementData[index] &#x3D; e;</span><br><span class="line">        size +&#x3D; 1;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 在某个位置增加另外一个集合内所有元素</span><br><span class="line">    public void add(int index, MyArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        &#x2F;&#x2F; check arguments</span><br><span class="line">        &#x2F;&#x2F; ...</span><br><span class="line">        </span><br><span class="line">        if (elementData.length &lt; size + c.size()) &#123;</span><br><span class="line">            ensureCapacity(size + c.size());</span><br><span class="line">        &#125;</span><br><span class="line">        &#x2F;&#x2F; 先将index往后的元素往后挪，为新元素腾开空位。</span><br><span class="line">        System.copyarray(...);</span><br><span class="line">        &#x2F;&#x2F; 再讲c里面的元素copy过来</span><br><span class="line">        System.copyarray(...);</span><br><span class="line">        size +&#x3D; c.size();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 删除某个位置元素，如果产生不合法，是否要抛异常。</span><br><span class="line">    &#x2F;&#x2F; 函数返回值为void是否可以？</span><br><span class="line">    public void remove(int index) &#123;</span><br><span class="line">        &#x2F;&#x2F; check argument</span><br><span class="line">        &#x2F;&#x2F; ...</span><br><span class="line">        </span><br><span class="line">        &#x2F;&#x2F; 将index及其后面的元素往前移动一个位置, memmove操作。</span><br><span class="line">        &#x2F;&#x2F; 从这里可以看到对于ArrayList，增加，删除操作是O(n)时间复杂度的。</span><br><span class="line">        System.copyarray(...); </span><br><span class="line">        size -&#x3D; 1;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 从集合内删除其它集合内的元素。</span><br><span class="line">    &#x2F;&#x2F; ArrayList的实现，还有个boolean参数，控制开关，删除包含在c中的元素，还是删除不包含在c中的元素。</span><br><span class="line">    &#x2F;&#x2F; 可以看做为控制两个集合之差的形式是 A - B 还是 B - A。 </span><br><span class="line">    public void remove(MyArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        E[] newElementData &#x3D; new E[elementData.length]</span><br><span class="line">        int r &#x3D; 0;</span><br><span class="line">        int w &#x3D; 0;</span><br><span class="line">        for (int r &#x3D; 0; r &lt; size; ++r) &#123;</span><br><span class="line">            if (!c.contains(elementData[r])) &#123;</span><br><span class="line">                newElementData[w++] &#x3D; elementData[r];</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        elementData &#x3D; newElementData;</span><br><span class="line">        size &#x3D; w;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 修改某个位置元素值</span><br><span class="line">    public set(int index, E e) &#123;</span><br><span class="line">        &#x2F;&#x2F; check argument</span><br><span class="line">        &#x2F;&#x2F; ...</span><br><span class="line">        elementData[index] &#x3D; e;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 查询</span><br><span class="line">    &#x2F;&#x2F; 如果index不合法，抛异常。</span><br><span class="line">    public E get(int index) &#123;</span><br><span class="line">        &#x2F;&#x2F; check argument</span><br><span class="line">        &#x2F;&#x2F; ...</span><br><span class="line">        return elementData[index];</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 查询某个元素所在位置</span><br><span class="line">    public int indexOf(E e) &#123;</span><br><span class="line">        for (int i &#x3D; 0; i &lt; size; ++i) &#123;</span><br><span class="line">            if (elementData[i].equals(e)) &#123;</span><br><span class="line">                return i;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        return -1;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 判断某元素是否在表中</span><br><span class="line">    public boolean contains(E e) &#123;</span><br><span class="line">        return indexOf(e) !&#x3D; -1;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="对比分析"><a href="#对比分析" class="headerlink" title="对比分析"></a>对比分析</h2><p>将自己写的初步实现代码与JDK中的ArrayList做比较，对每一簇功能细致的比较、分析，搞清楚JDK1.8实现的机理。下面主要讨论下JDK中ArrayList的构造方法，它们与自己实现的preliminary版本区别在哪。</p>
-<h3 id="ArrayList构造方法"><a href="#ArrayList构造方法" class="headerlink" title="ArrayList构造方法"></a>ArrayList构造方法</h3><h4 id="ArrayList继承实现关系层次较深。"><a href="#ArrayList继承实现关系层次较深。" class="headerlink" title="ArrayList继承实现关系层次较深。"></a>ArrayList继承实现关系层次较深。</h4><p><img src="/images/ArrayList.png" alt=""></p>
-<p>为什么要搞这么复杂的继承及实现关系呢，以后再说。先看几个问题：</p>
-<ol>
-<li><p>ArrayList extends AbstractList implements List, AbstractList其实已经implements List了，为什么ArrayList还要implements List?</p>
-</li>
-<li><p>看内部数组声明方式：transient Object[] elementData;<br> a. 为什么用Object[]类型，为什么不用 E[]呢？<br> b. 为什么用transient？<br> c. 为什么用包访问权限？<br> 问题2.a，内部数组为什么要用Object[]，我没想明白。在stackoverflow上找到答案。Java里面不能创建泛型数组，编译通不过。看下面代码：</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public class Container&lt;E&gt; &#123;</span><br><span class="line">    E[] arr &#x3D; new E[3]; &#x2F;&#x2F; 这里会有编译错误，error generic array creation</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p> 为什么会这样？这和java的泛型实现有关，细节可以搜索相关资料。那不能用上面代码创建泛型数组，有其它方法吗？stackoverflow有人提出两种方法：</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 方法1</span><br><span class="line">private Ojbect[] arr;</span><br><span class="line">arr &#x3D; new Object[3];</span><br><span class="line"></span><br><span class="line">E get(int i) &#123;</span><br><span class="line">    return (E)arr[i]; &#x2F;&#x2F; 每次获取元素都要转换类型，编译时会有unchecked的warning</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 方法2</span><br><span class="line">private E[] arr;</span><br><span class="line">arr &#x3D; (E[]) new Object[3]; &#x2F;&#x2F; 这里编译时会有unchecked的warning</span><br><span class="line"></span><br><span class="line">E get(int i) &#123;</span><br><span class="line">    return arr[i];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p> 两者各有优缺点，java ArrayList是用的方法1。</p>
-<p> 问题2.b，内部数组为什么要用transient？我们知道transient是禁止字段进行序列化，ArrayList的数据就是保存在elementData数组中的，前面用transient标识，那还怎么对ArrayList进行序列化啊，是不是有点奇怪？我们来想一想，ArrayList内部elementData多数时候是有空余空间的，如果直接用默认序列化方法，那么这些空余空间也会被序列化进去，显然这是不合适的。我们只需要序列化真正的数据部分。于是ArrayList采用的方法是禁用默认序列化方法，重写了序列化和反序列化方法writeObject和readObject方法。</p>
-<p> 问题2.c，为什么用Default包访问权限，ArrayList自身的注释写着：</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">transient Object[] elementData; &#x2F;&#x2F; non-private to simplify nested class access</span><br></pre></td></tr></table></figure>
-<p> 简化嵌套类的访问。ArrayList内部有多个迭代器内部类，需要访问elementData。不过，经过我试验，Inner class是可以访问Outer class的private成员的。</p>
-</li>
-<li><p>基于其它集合构建ArrayList，函数签名中的参数有点怪，那是干什么用的：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public MyArrayList(Collection&lt;? extends E&gt; c);</span><br></pre></td></tr></table></figure>
-<p>意思是可以接收E类型元素组成的集合，以及E的子类型元素组成的集合。可能有人会觉得，E的子类型集合可以自动转换成E类型集合，就像子类型自动可以转换成它的父类型。<br>不可以的。看下面的例子：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">class Fruit &#123;&#125;</span><br><span class="line">class Apple extends Furit &#123;&#125;</span><br><span class="line"></span><br><span class="line">Collection&lt;Furit&gt; c &#x3D; new Collection&lt;&gt;();</span><br><span class="line">c.add(new Fruit());</span><br><span class="line">c.add(new Apple()); &#x2F;&#x2F; 这是可以的，Apple对象自动转换成Fruit。因为Apple &quot;is-a&quot; Fruit</span><br><span class="line"></span><br><span class="line">&#x2F;*******************************************************&#x2F;</span><br><span class="line"></span><br><span class="line">Collection&lt;Fruit&gt; cf &#x3D; new Collection&lt;&gt;();</span><br><span class="line">cf.add(new Apple());</span><br><span class="line"></span><br><span class="line">Collection &lt;Apple&gt; ca &#x3D; new Collection&lt;&gt;();</span><br><span class="line">ca.add(new Apple);</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 假如有个函数接收集合作为参数。下面的定义只能接收Collection&lt;Fruit&gt;的参数，</span><br><span class="line">&#x2F;&#x2F; 不能接收Collection&lt;Apple&gt;的参数。也就是说：虽然Apple是Fruit，</span><br><span class="line">&#x2F;&#x2F; 但是“装apple的篮子不是装Fruit的篮子”。</span><br><span class="line">void func(Collection&lt;Fruit&gt; c) &#123;</span><br><span class="line">    &#x2F;&#x2F; do somethig</span><br><span class="line">&#125;</span><br><span class="line">func(cf); &#x2F;&#x2F; 可以的。</span><br><span class="line">func(ca); &#x2F;&#x2F; 不可以。因为 Collection&lt;Apple&gt; &quot;is-not-a&quot; Collection&lt;Fruit&gt;</span><br><span class="line"></span><br><span class="line">&#x2F;*********有什么办法能让func也能接收Collection&lt;Apple&gt;********&#x2F;</span><br><span class="line">&#x2F;&#x2F; 这个函数参数的意思是：能接收所有Fruit及其子类组成的Collection。</span><br><span class="line">void func1(Collection&lt;? extends Fruit&gt;) &#123;</span><br><span class="line">    &#x2F;&#x2F; do somethig</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>这里用到了Java泛型中的”通配符(Wildcards)“和”边界(Bounds)“概念。</p>
-</li>
-</ol>
-<ul>
-<li>&lt;? extends T&gt; 是指”上界通配符“ (Upper Bounds Wildcards)</li>
-<li>&lt;? super T&gt; 是指”下界通配符“ (Lower Bounds Wildcards)<br>细节可以搜索相关资料。</li>
-</ul>
-<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p>stackoverflow <a href="https://stackoverflow.com/questions/13776576/why-does-the-arraylist-implementation-use-object" target="_blank" rel="noopener">https://stackoverflow.com/questions/13776576/why-does-the-arraylist-implementation-use-object</a><br>知乎 <a href="https://www.zhihu.com/question/20400700" target="_blank" rel="noopener">https://www.zhihu.com/question/20400700</a></p>
-
-          
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2020/06/11/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/#more" rel="contents">
+              Read more &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
         
       
     </div>
@@ -620,7 +524,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://yangqisheng.github.io/2020/06/03/iterable/">
+    <link itemprop="mainEntityOfPage" href="https://yangqisheng.github.io/2020/06/07/iterable/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Qisheng">
@@ -639,7 +543,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2020/06/03/iterable/" itemprop="url">Python中的iterable和iterator</a></h1>
+                <a class="post-title-link" href="/2020/06/07/iterable/" itemprop="url">Python中的iterable和iterator</a></h1>
         
 
         <div class="post-meta">
@@ -651,8 +555,8 @@
               
                 <span class="post-meta-item-text">Posted on</span>
               
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-06-03T20:04:51+08:00">
-                2020-06-03
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-06-07T20:50:38+08:00">
+                2020-06-07
               </time>
             
 
@@ -670,9 +574,9 @@
                 <span class="post-meta-item-icon">
                   <i class="fa fa-comment-o"></i>
                 </span>
-                <a href="/2020/06/03/iterable/#comments" itemprop="discussionUrl">
+                <a href="/2020/06/07/iterable/#comments" itemprop="discussionUrl">
                   <span class="post-comments-count disqus-comment-count"
-                        data-disqus-identifier="2020/06/03/iterable/" itemprop="commentCount"></span>
+                        data-disqus-identifier="2020/06/07/iterable/" itemprop="commentCount"></span>
                 </a>
               </span>
             
@@ -701,41 +605,14 @@
 
       
         
-          
-            <p>Python编程中，我们经常会遇到iterable和iterator的概念，二者之间既有区别又有联系。这篇博文就来详细说说这个话题。</p>
-<h2 id="说在前面"><a href="#说在前面" class="headerlink" title="说在前面"></a>说在前面</h2><p>迭代器在各种编程语言中都是一个重要的概念。它是对一个对象或数据集合进行遍历的一种抽象。比如一个列表，一个字典，如果需要挨个打印里面的元素，我们就可以针对它们创建一个迭代器，然后就可以很方便的进行遍历了。</p>
-<h2 id="Python的iterable和iterator"><a href="#Python的iterable和iterator" class="headerlink" title="Python的iterable和iterator"></a>Python的iterable和iterator</h2><p>Python中除了iterator对象还有iterable对象。我们知道iterator是迭代器，那iterable是个什么东西呢，它是可迭代对象。什么是可迭代对象？我理解就是可以利用迭代器对其进行遍历的东西。<br>Python中规定，只要类实现了__iter__方法并且该方法返回一个iterator的class就是iterable。</p>
-<h2 id="iterable"><a href="#iterable" class="headerlink" title="iterable"></a>iterable</h2><p>Python中的list, dict,tuple等基本类型都是iterable，执行下面的python代码可以看到list对象有__iter__方法。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dir([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>,])</span><br></pre></td></tr></table></figure>
-<p>下面我们构建一个自己的iterable,设定这个iterable基于一个字符串构建，切词形成一个可迭代的word集合，然后可以对里面的word进行迭代。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">class MyIteratable:</span><br><span class="line">    def __init__(self, string):</span><br><span class="line">        self.string &#x3D; string</span><br><span class="line"></span><br><span class="line">    # 这里要注意，返回一个iterator对象，利用这个iterator可以对该Myiterable进行迭代。</span><br><span class="line">    def __iter__(self):</span><br><span class="line">        return MyIterator(self.string)</span><br><span class="line"></span><br><span class="line">class MyIterator:</span><br><span class="line">    def __init__(self, string):</span><br><span class="line">        pass</span><br><span class="line">    def __next__(self):</span><br><span class="line">        pass</span><br></pre></td></tr></table></figure>
-
-<p>client代码如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">my_iterable &#x3D; MyIteratable(&quot;It&#39;s a test&quot;)</span><br><span class="line"></span><br><span class="line"># iter(my_iterable)会自动调用my_iterable.__iter__方法。python类中带有双下划线前后缀的方法叫Magic Methods, 类似的还有__init__, __next__, __repr__等等。</span><br><span class="line">my_iterator &#x3D; iter(my_iterable)</span><br><span class="line"></span><br><span class="line"># 下面就可以用my_iterator进行迭代了，具体怎么使用iterator进行迭代请看下面</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
-
-<h2 id="iterator"><a href="#iterator" class="headerlink" title="iterator"></a>iterator</h2><p>Python中只要实现了__next__方法的class叫iterator（严格来说，还需要实现__iter__，这个后面再讲）。每调用一次next(iterator), 就取出了一个元素。当遍历完最后一个元素后，还调用next(iterator)就会触发StopIteration异常。所以我们利用一个iterator进行迭代时，就有client代码如下:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># 通过iter(iterable)或者其它方法获取一个迭代器</span><br><span class="line">my_iterator &#x3D; iter(iterable)</span><br><span class="line">while True:</span><br><span class="line">    try:</span><br><span class="line">        item &#x3D; next(my_iterator) # 获取到一个元素</span><br><span class="line">    except StopIteration:</span><br><span class="line">        break</span><br></pre></td></tr></table></figure>
-<p>next(my_iterator)其实是调用了my_iterator.__next__方法。这个方法每次都需要返回一个元素。接下来，我们来完善上面class MyIterator里面的方法。__next__方法每次返回一个元素，当到达尾部时触发StopIteration异常。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">class MyIteratable:</span><br><span class="line">    def __init__(self, string):</span><br><span class="line">        self.string &#x3D; string</span><br><span class="line"></span><br><span class="line">    # 这里要注意，返回一个iterator对象，利用这个iterator可以对该Myiterable进行迭代。</span><br><span class="line">    def __iter__(self):</span><br><span class="line">        return MyIterator(self.string)</span><br><span class="line"></span><br><span class="line">class MyIterator:</span><br><span class="line">    def __init__(self, string):</span><br><span class="line">        self.words &#x3D; string.split()</span><br><span class="line">        self.index &#x3D; 0 # 每次迭代，迭代器都有个位置。</span><br><span class="line"></span><br><span class="line">    def __next__(self):</span><br><span class="line">        if self.index &lt; len(self.words):</span><br><span class="line">            item &#x3D; self.words[self.index]</span><br><span class="line">            self.index +&#x3D; 1</span><br><span class="line">            return item</span><br><span class="line">        else:</span><br><span class="line">            raise StopIteration()</span><br></pre></td></tr></table></figure>
-
-<p>再次回到上面使用iterator迭代一个iterable的client代码，先要获取iterable的iterator，然后在while循环里面遍历元素，while里面退出条件是捕获到StopIteration异常。我们可以看到，对一个iterable进行迭代太啰嗦了，那么能否有个简洁的方法呢？有！请看下面：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">for i in iterable:</span><br><span class="line">    print(i)</span><br></pre></td></tr></table></figure>
-<p>for in 语法就是对上面啰嗦写法的一个简写形式。for in是语言内部进行了上面那些啰嗦的操作。<br>好了，到现在，我们基本捋清了iterable和iterator的区别和联系了吧。总结如下：</p>
-<ul>
-<li>iterable是可迭代对象，实现了__iter__方法，该方法返回一个可以对自身进行迭代的迭代器。</li>
-<li>iterator是迭代器对象，实现了__next__方法，可以对该迭代器所关联的iterable进行迭代。</li>
-<li>iterable内部元素数量是可知的，而我们不能通过iterator知道其关联的iterable有多少数量，只能一步一步的next，最后触发StopIteration。</li>
-</ul>
-<h2 id="重要的一点-iterator也是一个iterable。"><a href="#重要的一点-iterator也是一个iterable。" class="headerlink" title="重要的一点, iterator也是一个iterable。"></a>重要的一点, iterator也是一个iterable。</h2><p>iterator还需要实现__iter__方法，而且该方法很简单就是返回自身，如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">class MyIterator:</span><br><span class="line">    def __init__(self, string):</span><br><span class="line">        self.words &#x3D; string.split()</span><br><span class="line">        self.index &#x3D; 0 # 每次迭代，迭代器都有个位置。</span><br><span class="line"></span><br><span class="line">    def __next__(self):</span><br><span class="line">        if self.index &lt; len(self.words):</span><br><span class="line">            item &#x3D; self.words(self.index)</span><br><span class="line">            self.index +&#x3D; 1</span><br><span class="line">            return item</span><br><span class="line">        else:</span><br><span class="line">            raise StopIteration()</span><br><span class="line"></span><br><span class="line">    def __iter__(self):</span><br><span class="line">        return self</span><br></pre></td></tr></table></figure>
-<p>iterator为什么要实现__iter__，而且大多数情况下都是返回self。是不是看起来很奇怪？如果没有这个__iter__函数，会不会有问题？这个问题我也是找了好多资料才想明白的。<br>情况是这样的，我们知道一个iterable可以应用在for in 语句中，更进一步，一个iterator也是可以应用在for in 语句中的。当应用在for in 中时，iterator就当做一个iterable使用了。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">my_list &#x3D; [1, 2, 3, 4]</span><br><span class="line">my_list_iter &#x3D; iter(my_list)</span><br><span class="line">for i in my_list_iter:</span><br><span class="line">    print(i)</span><br></pre></td></tr></table></figure>
-<p>__iter__必须返回一个迭代器，而一个iterator的__iter__函数，它要返回一个迭代器，必然是它自身。</p>
-<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
-<li>Python 3 Object-oriented Programming, 2nd Edition</li>
-</ul>
-
-          
+          <p>Python编程中，我们经常会遇到iterable和iterator的概念，二者之间既有区别又有联系。这篇博文就来详细说说这个话题。</p>
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2020/06/07/iterable/#more" rel="contents">
+              Read more &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
         
       
     </div>
@@ -828,7 +705,7 @@
               
               <div class="site-state-item site-state-tags">
                 
-                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-count">3</span>
                   <span class="site-state-item-name">tags</span>
                 
               </div>
