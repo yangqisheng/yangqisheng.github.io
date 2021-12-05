@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。  先自己简单实现一遍 对照库的实现，挨个分析库为什么要那么写，那么写有什么好处。 库实现，涉及到哪些巧妙的方法。  仔细分析起来，内容还是蛮多。为了不繁杂，博文可能需要分成">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java-ArrayList-源码分析（一）">
+<meta property="og:url" content="http://example.com/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/index.html">
+<meta property="og:site_name" content="Qisheng&#39;s Blog">
+<meta property="og:description" content="ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。  先自己简单实现一遍 对照库的实现，挨个分析库为什么要那么写，那么写有什么好处。 库实现，涉及到哪些巧妙的方法。  仔细分析起来，内容还是蛮多。为了不繁杂，博文可能需要分成">
+<meta property="og:locale">
+<meta property="og:image" content="https://yangqisheng.github.io/images/ArrayList.png">
+<meta property="article:published_time" content="2020-06-06T16:00:00.000Z">
+<meta property="article:modified_time" content="2021-12-05T15:13:16.675Z">
+<meta property="article:author" content="Qisheng">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="ArrayList">
+<meta property="article:tag" content="源码分析">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://yangqisheng.github.io/images/ArrayList.png">
+
+<link rel="canonical" href="http://example.com/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Java-ArrayList-源码分析（一） | Qisheng's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Qisheng's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Illustrate something</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Qisheng">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Qisheng's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java-ArrayList-源码分析（一）
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-06-07 00:00:00" itemprop="dateCreated datePublished" datetime="2020-06-07T00:00:00+08:00">2020-06-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-12-05 23:13:16" itemprop="dateModified" datetime="2021-12-05T23:13:16+08:00">2021-12-05</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Disqus: </span>
+    
+    <a title="disqus" href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/#disqus_thread" itemprop="discussionUrl">
+      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2020/06/07/Java-ArrayList-源码分析-一/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。</p>
+<ul>
+<li>先自己简单实现一遍</li>
+<li>对照库的实现，挨个分析库为什么要那么写，那么写有什么好处。</li>
+<li>库实现，涉及到哪些巧妙的方法。</li>
+</ul>
+<p>仔细分析起来，内容还是蛮多。为了不繁杂，博文可能需要分成多个部分，每个部分分析ArrayList中一簇功能。<br>本篇第一篇，先总体概览，再说说ArrayList Constructor。</p>
+<span id="more"></span>
+
+<h1 id="顺序表怎么实现"><a href="#顺序表怎么实现" class="headerlink" title="顺序表怎么实现"></a>顺序表怎么实现</h1><p>先考虑一下，如果不去看ArrayList的库实现，要自己写一个ArrayList，我们要怎么做。</p>
+<h2 id="定义要实现的ArrayList功能。"><a href="#定义要实现的ArrayList功能。" class="headerlink" title="定义要实现的ArrayList功能。"></a>定义要实现的ArrayList功能。</h2><p>既然是个顺序表，所需功能大体离不开增删改查，再加上构造函数。</p>
+<h3 id="构造"><a href="#构造" class="headerlink" title="构造"></a>构造</h3><ul>
+<li>构造一个空的表。</li>
+<li>构造一个有一定容量的表。</li>
+<li>通过一个其它集合构造一个顺序表，将集合中元素挨个塞进顺序表。</li>
+</ul>
+<h3 id="增"><a href="#增" class="headerlink" title="增"></a>增</h3><p>顺序表增加的操作，一般来说，有：</p>
+<ul>
+<li>在末尾增加一个元素。</li>
+<li>在某个位置增加一个元素。</li>
+<li>将其它集合里面的元素批量增加到末尾。</li>
+<li>将其它集合里面的元素批量增加到某个位置。</li>
+</ul>
+<h3 id="删"><a href="#删" class="headerlink" title="删"></a>删</h3><p>顺序表删除的操作，一般来说，有：</p>
+<ul>
+<li>删除某个位置上的元素。</li>
+<li>删除一个位置区间内所有元素。</li>
+<li>从顺序表中删除值为x的个元素。</li>
+<li>删除所有元素， 即清空。</li>
+</ul>
+<h3 id="改"><a href="#改" class="headerlink" title="改"></a>改</h3><p>顺序表修改的操作，有：</p>
+<ul>
+<li>修改某个位置上的元素。</li>
+</ul>
+<h3 id="查"><a href="#查" class="headerlink" title="查"></a>查</h3><ul>
+<li>获取某个位置上的元素。</li>
+<li>查找某个元素在顺序表中的位置。</li>
+<li>判断值为x的元素是否包含在顺序表中。</li>
+</ul>
+<h2 id="初步实现"><a href="#初步实现" class="headerlink" title="初步实现"></a>初步实现</h2><p>由于类功能较简单，我们就直接写代码原型。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br></pre></td><td class="code"><pre><span class="line">package mypackage;</span><br><span class="line"></span><br><span class="line">public class MyArrayList&lt;E&gt; &#123;</span><br><span class="line">    private E[] elementData;</span><br><span class="line">    private int size;</span><br><span class="line">    </span><br><span class="line">    // 创建空的list</span><br><span class="line">    public MyArrayList() &#123;</span><br><span class="line">        elementData = new E[0];</span><br><span class="line">        size = 0;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 创建一个容量为capacity的list，为什么需要这样一个初始容量的构造函数？</span><br><span class="line">    // 只提供默认空构造函数，然后调用增加元素方法进行内部数组申请，不也行么？</span><br><span class="line">    public MyArrayList(int capacity) &#123;</span><br><span class="line">        elementData = new E[capacity];</span><br><span class="line">        size = 0;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 基于其它集合创建顺序表</span><br><span class="line">    public MyArrayList(MyArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        System.arraycopy(c.elementData, 0, elementData, 0, c.size());</span><br><span class="line">        size = c.size();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 在末尾增加元素</span><br><span class="line">    public void add(E e) &#123;</span><br><span class="line">        if (elementData.length == size) &#123;</span><br><span class="line">            ensureCapacity(size + 1);</span><br><span class="line">        &#125;</span><br><span class="line">        elementData[size++] = e;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 在某个位置增加元素，要判断参数合法性，如果不合法，是抛异常呢，还是返回错误值呢</span><br><span class="line">    public void add(int index, E e) &#123;</span><br><span class="line">        // check arguments,校验index是否 &lt; 0 或者 &gt; size</span><br><span class="line">        // ...</span><br><span class="line">        </span><br><span class="line">        if (elementData.length == size) &#123;</span><br><span class="line">            ensureCapacity(size + 1);</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        // 将index及其后面的元素都往后错一位。System.arraycopy支持区间重叠拷贝。</span><br><span class="line">        System.arraycopy(...);</span><br><span class="line">        elementData[index] = e;</span><br><span class="line">        size += 1;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 在某个位置增加另外一个集合内所有元素</span><br><span class="line">    public void add(int index, MyArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        // check arguments</span><br><span class="line">        // ...</span><br><span class="line">        </span><br><span class="line">        if (elementData.length &lt; size + c.size()) &#123;</span><br><span class="line">            ensureCapacity(size + c.size());</span><br><span class="line">        &#125;</span><br><span class="line">        // 先将index往后的元素往后挪，为新元素腾开空位。</span><br><span class="line">        System.copyarray(...);</span><br><span class="line">        // 再讲c里面的元素copy过来</span><br><span class="line">        System.copyarray(...);</span><br><span class="line">        size += c.size();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 删除某个位置元素，如果产生不合法，是否要抛异常。</span><br><span class="line">    // 函数返回值为void是否可以？</span><br><span class="line">    public void remove(int index) &#123;</span><br><span class="line">        // check argument</span><br><span class="line">        // ...</span><br><span class="line">        </span><br><span class="line">        // 将index及其后面的元素往前移动一个位置, memmove操作。</span><br><span class="line">        // 从这里可以看到对于ArrayList，增加，删除操作是O(n)时间复杂度的。</span><br><span class="line">        System.copyarray(...); </span><br><span class="line">        size -= 1;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 从集合内删除其它集合内的元素。</span><br><span class="line">    // ArrayList的实现，还有个boolean参数，控制开关，删除包含在c中的元素，还是删除不包含在c中的元素。</span><br><span class="line">    // 可以看做为控制两个集合之差的形式是 A - B 还是 B - A。 </span><br><span class="line">    public void remove(MyArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        E[] newElementData = new E[elementData.length]</span><br><span class="line">        int r = 0;</span><br><span class="line">        int w = 0;</span><br><span class="line">        for (int r = 0; r &lt; size; ++r) &#123;</span><br><span class="line">            if (!c.contains(elementData[r])) &#123;</span><br><span class="line">                newElementData[w++] = elementData[r];</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        elementData = newElementData;</span><br><span class="line">        size = w;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 修改某个位置元素值</span><br><span class="line">    public set(int index, E e) &#123;</span><br><span class="line">        // check argument</span><br><span class="line">        // ...</span><br><span class="line">        elementData[index] = e;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 查询</span><br><span class="line">    // 如果index不合法，抛异常。</span><br><span class="line">    public E get(int index) &#123;</span><br><span class="line">        // check argument</span><br><span class="line">        // ...</span><br><span class="line">        return elementData[index];</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 查询某个元素所在位置</span><br><span class="line">    public int indexOf(E e) &#123;</span><br><span class="line">        for (int i = 0; i &lt; size; ++i) &#123;</span><br><span class="line">            if (elementData[i].equals(e)) &#123;</span><br><span class="line">                return i;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        return -1;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    // 判断某元素是否在表中</span><br><span class="line">    public boolean contains(E e) &#123;</span><br><span class="line">        return indexOf(e) != -1;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="对比分析"><a href="#对比分析" class="headerlink" title="对比分析"></a>对比分析</h2><p>将自己写的初步实现代码与JDK中的ArrayList做比较，对每一簇功能细致的比较、分析，搞清楚JDK1.8实现的机理。下面主要讨论下JDK中ArrayList的构造方法，它们与自己实现的preliminary版本区别在哪。</p>
+<h3 id="ArrayList构造方法"><a href="#ArrayList构造方法" class="headerlink" title="ArrayList构造方法"></a>ArrayList构造方法</h3><h4 id="ArrayList继承实现关系层次较深。"><a href="#ArrayList继承实现关系层次较深。" class="headerlink" title="ArrayList继承实现关系层次较深。"></a>ArrayList继承实现关系层次较深。</h4><p><a target="_blank" rel="noopener" href="https://yangqisheng.github.io/images/ArrayList.png"><img src="https://yangqisheng.github.io/images/ArrayList.png" alt="img"></a></p>
+<p>为什么要搞这么复杂的继承及实现关系呢，以后再说。先看几个问题：</p>
+<ol>
+<li><p>ArrayList extends AbstractList implements List, AbstractList其实已经implements List了，为什么ArrayList还要implements List?</p>
+</li>
+<li><p>看内部数组声明方式：transient Object[] elementData;<br>a. 为什么用Object[]类型，为什么不用 E[]呢？<br>b. 为什么用transient？<br>c. 为什么用包访问权限？<br>问题2.a，内部数组为什么要用Object[]，我没想明白。在stackoverflow上找到答案。Java里面不能创建泛型数组，编译通不过。看下面代码：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public class Container&lt;E&gt; &#123;</span><br><span class="line">    E[] arr = new E[3]; // 这里会有编译错误，error generic array creation</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>为什么会这样？这和java的泛型实现有关，细节可以搜索相关资料。那不能用上面代码创建泛型数组，有其它方法吗？stackoverflow有人提出两种方法：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">// 方法1</span><br><span class="line">private Ojbect[] arr;</span><br><span class="line">arr = new Object[3];</span><br><span class="line"></span><br><span class="line">E get(int i) &#123;</span><br><span class="line">    return (E)arr[i]; // 每次获取元素都要转换类型，编译时会有unchecked的warning</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 方法2</span><br><span class="line">private E[] arr;</span><br><span class="line">arr = (E[]) new Object[3]; // 这里编译时会有unchecked的warning</span><br><span class="line"></span><br><span class="line">E get(int i) &#123;</span><br><span class="line">    return arr[i];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>两者各有优缺点，java ArrayList是用的方法1。</p>
+<p>问题2.b，内部数组为什么要用transient？我们知道transient是禁止字段进行序列化，ArrayList的数据就是保存在elementData数组中的，前面用transient标识，那还怎么对ArrayList进行序列化啊，是不是有点奇怪？我们来想一想，ArrayList内部elementData多数时候是有空余空间的，如果直接用默认序列化方法，那么这些空余空间也会被序列化进去，显然这是不合适的。我们只需要序列化真正的数据部分。于是ArrayList采用的方法是禁用默认序列化方法，重写了序列化和反序列化方法writeObject和readObject方法。</p>
+<p>问题2.c，为什么用Default包访问权限，ArrayList自身的注释写着：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">transient Object[] elementData; // non-private to simplify nested class access</span><br></pre></td></tr></table></figure>
+
+<p>简化嵌套类的访问。ArrayList内部有多个迭代器内部类，需要访问elementData。不过，经过我试验，Inner class是可以访问Outer class的private成员的。</p>
+</li>
+<li><p>基于其它集合构建ArrayList，函数签名中的参数有点怪，那是干什么用的：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public MyArrayList(Collection&lt;? extends E&gt; c);</span><br></pre></td></tr></table></figure>
+
+<p>意思是可以接收E类型元素组成的集合，以及E的子类型元素组成的集合。可能有人会觉得，E的子类型集合可以自动转换成E类型集合，就像子类型自动可以转换成它的父类型。<br>不可以的。看下面的例子：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">class Fruit &#123;&#125;</span><br><span class="line">class Apple extends Furit &#123;&#125;</span><br><span class="line"></span><br><span class="line">Collection&lt;Furit&gt; c = new Collection&lt;&gt;();</span><br><span class="line">c.add(new Fruit());</span><br><span class="line">c.add(new Apple()); // 这是可以的，Apple对象自动转换成Fruit。因为Apple &quot;is-a&quot; Fruit</span><br><span class="line"></span><br><span class="line">/*******************************************************/</span><br><span class="line"></span><br><span class="line">Collection&lt;Fruit&gt; cf = new Collection&lt;&gt;();</span><br><span class="line">cf.add(new Apple());</span><br><span class="line"></span><br><span class="line">Collection &lt;Apple&gt; ca = new Collection&lt;&gt;();</span><br><span class="line">ca.add(new Apple);</span><br><span class="line"></span><br><span class="line">// 假如有个函数接收集合作为参数。下面的定义只能接收Collection&lt;Fruit&gt;的参数，</span><br><span class="line">// 不能接收Collection&lt;Apple&gt;的参数。也就是说：虽然Apple是Fruit，</span><br><span class="line">// 但是“装apple的篮子不是装Fruit的篮子”。</span><br><span class="line">void func(Collection&lt;Fruit&gt; c) &#123;</span><br><span class="line">    // do somethig</span><br><span class="line">&#125;</span><br><span class="line">func(cf); // 可以的。</span><br><span class="line">func(ca); // 不可以。因为 Collection&lt;Apple&gt; &quot;is-not-a&quot; Collection&lt;Fruit&gt;</span><br><span class="line"></span><br><span class="line">/*********有什么办法能让func也能接收Collection&lt;Apple&gt;********/</span><br><span class="line">// 这个函数参数的意思是：能接收所有Fruit及其子类组成的Collection。</span><br><span class="line">void func1(Collection&lt;? extends Fruit&gt;) &#123;</span><br><span class="line">    // do somethig</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里用到了Java泛型中的”通配符(Wildcards)“和”边界(Bounds)“概念。</p>
+</li>
+</ol>
+<ul>
+<li><? extends T> 是指”上界通配符“ (Upper Bounds Wildcards)</li>
+<li><? super T> 是指”下界通配符“ (Lower Bounds Wildcards)
+细节可以搜索相关资料。</li>
+</ul>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p>stackoverflow <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/13776576/why-does-the-arraylist-implementation-use-object">https://stackoverflow.com/questions/13776576/why-does-the-arraylist-implementation-use-object</a><br>知乎 <a target="_blank" rel="noopener" href="https://www.zhihu.com/question/20400700">https://www.zhihu.com/question/20400700</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/ArrayList/" rel="tag"># ArrayList</a>
+              <a href="/tags/%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" rel="tag"># 源码分析</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/" rel="prev" title="Java-ArrayList-源码分析（二）">
+      <i class="fa fa-chevron-left"></i> Java-ArrayList-源码分析（二）
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/06/07/Python%E4%B8%AD%E7%9A%84iterable%E5%92%8Citerator/" rel="next" title="Python中的iterable和iterator">
+      Python中的iterable和iterator <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    
+  <div class="comments">
+    <div id="disqus_thread">
+      <noscript>Please enable JavaScript to view the comments powered by Disqus.</noscript>
+    </div>
+  </div>
+  
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%A1%BA%E5%BA%8F%E8%A1%A8%E6%80%8E%E4%B9%88%E5%AE%9E%E7%8E%B0"><span class="nav-number">1.</span> <span class="nav-text">顺序表怎么实现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89%E8%A6%81%E5%AE%9E%E7%8E%B0%E7%9A%84ArrayList%E5%8A%9F%E8%83%BD%E3%80%82"><span class="nav-number">1.1.</span> <span class="nav-text">定义要实现的ArrayList功能。</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9E%84%E9%80%A0"><span class="nav-number">1.1.1.</span> <span class="nav-text">构造</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A2%9E"><span class="nav-number">1.1.2.</span> <span class="nav-text">增</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%A0"><span class="nav-number">1.1.3.</span> <span class="nav-text">删</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%94%B9"><span class="nav-number">1.1.4.</span> <span class="nav-text">改</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9F%A5"><span class="nav-number">1.1.5.</span> <span class="nav-text">查</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%9D%E6%AD%A5%E5%AE%9E%E7%8E%B0"><span class="nav-number">1.2.</span> <span class="nav-text">初步实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AF%B9%E6%AF%94%E5%88%86%E6%9E%90"><span class="nav-number">1.3.</span> <span class="nav-text">对比分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ArrayList%E6%9E%84%E9%80%A0%E6%96%B9%E6%B3%95"><span class="nav-number">1.3.1.</span> <span class="nav-text">ArrayList构造方法</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#ArrayList%E7%BB%A7%E6%89%BF%E5%AE%9E%E7%8E%B0%E5%85%B3%E7%B3%BB%E5%B1%82%E6%AC%A1%E8%BE%83%E6%B7%B1%E3%80%82"><span class="nav-number">1.3.1.1.</span> <span class="nav-text">ArrayList继承实现关系层次较深。</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">2.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Qisheng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">categories</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">tags</span>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Qisheng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<script>
+  function loadCount() {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://qi-sheng-bo-ke.disqus.com/count.js';
+    s.id = 'dsq-count-scr';
+    (d.head || d.body).appendChild(s);
+  }
+  // defer loading until the whole page loading is completed
+  window.addEventListener('load', loadCount, false);
+</script>
+<script>
+  var disqus_config = function() {
+    this.page.url = "http://example.com/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/";
+    this.page.identifier = "2020/06/07/Java-ArrayList-源码分析-一/";
+    this.page.title = "Java-ArrayList-源码分析（一）";
+    };
+  NexT.utils.loadComments(document.querySelector('#disqus_thread'), () => {
+    if (window.DISQUS) {
+      DISQUS.reset({
+        reload: true,
+        config: disqus_config
+      });
+    } else {
+      var d = document, s = d.createElement('script');
+      s.src = 'https://qi-sheng-bo-ke.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', '' + +new Date());
+      (d.head || d.body).appendChild(s);
+    }
+  });
+</script>
+
+</body>
+</html>

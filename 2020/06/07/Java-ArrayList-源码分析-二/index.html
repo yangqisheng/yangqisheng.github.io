@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="上一篇讲了ArrayList的几个构造函数。ArrayList的增删改查的实现，比较简单。本篇先讲一个代码效率问题，再着重讲讲ArrayList的迭代器实现。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java-ArrayList-源码分析（二）">
+<meta property="og:url" content="http://example.com/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/index.html">
+<meta property="og:site_name" content="Qisheng&#39;s Blog">
+<meta property="og:description" content="上一篇讲了ArrayList的几个构造函数。ArrayList的增删改查的实现，比较简单。本篇先讲一个代码效率问题，再着重讲讲ArrayList的迭代器实现。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-06-06T16:00:00.000Z">
+<meta property="article:modified_time" content="2021-12-05T15:13:26.443Z">
+<meta property="article:author" content="Qisheng">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="ArrayList">
+<meta property="article:tag" content="源码分析">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Java-ArrayList-源码分析（二） | Qisheng's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Qisheng's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Illustrate something</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Qisheng">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Qisheng's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java-ArrayList-源码分析（二）
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-06-07 00:00:00" itemprop="dateCreated datePublished" datetime="2020-06-07T00:00:00+08:00">2020-06-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-12-05 23:13:26" itemprop="dateModified" datetime="2021-12-05T23:13:26+08:00">2021-12-05</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Disqus: </span>
+    
+    <a title="disqus" href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/#disqus_thread" itemprop="discussionUrl">
+      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2020/06/07/Java-ArrayList-源码分析-二/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>上一篇讲了ArrayList的几个构造函数。ArrayList的增删改查的实现，比较简单。本篇先讲一个代码效率问题，再着重讲讲ArrayList的迭代器实现。</p>
+<span id="more"></span>
+
+<h1 id="查询一个对象的索引位置"><a href="#查询一个对象的索引位置" class="headerlink" title="查询一个对象的索引位置"></a>查询一个对象的索引位置</h1><p>ArrayList的indexOf方法，接收一个Object，返回该Object在ArrayList中的位置。我们看下ArrayList的实现，如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">// 写法一</span><br><span class="line">public int indexOf(Object o) &#123;</span><br><span class="line">    if (o == null) &#123;</span><br><span class="line">        for (int i = 0; i &lt; size; i++)</span><br><span class="line">            if (elementData[i]==null)</span><br><span class="line">                return i;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        for (int i = 0; i &lt; size; i++)</span><br><span class="line">            if (o.equals(elementData[i]))</span><br><span class="line">                return i;</span><br><span class="line">    &#125;</span><br><span class="line">    return -1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们可以看到，它是先判断o是否为null，根据结果分别走两个分支，在分支里面用for循环去挨个判断elementData中元素是否等于o。初步看，代码里面好像for循环写了两个，重复了，我们也可以在一个for循环里面判断，写成下面这种形式:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">// 写法二</span><br><span class="line">public int indexOf(Object o) &#123;</span><br><span class="line">    for (int i = 0; i &lt; size; i++) &#123;</span><br><span class="line">        if (o == null) &#123;</span><br><span class="line">            if (elementData[i] == null)</span><br><span class="line">                return i;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            if (o.equals(elementData[i]))</span><br><span class="line">                return i;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    return -1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>看起来，写法二比写法一少了一句for循环，但是写法二执行效率差一点，每次迭代都要判断一个o是否为null；而写法一只要判断一次o是否为null。所以总的下来，写法一节省了n/2 - 1次比较操作。</p>
+<h1 id="迭代器和内部类"><a href="#迭代器和内部类" class="headerlink" title="迭代器和内部类"></a>迭代器和内部类</h1><p>ArrayList的迭代器是内部类实现的。迭代器是内部类的绝佳的应用场景。我们分几步来说明下：</p>
+<ul>
+<li>为什么要迭代器，不用迭代器，可不可以对ArrayList进行迭代。</li>
+<li>迭代器不用内部类实现，用独立的类实现会怎样。</li>
+</ul>
+<h2 id="为什么要迭代器"><a href="#为什么要迭代器" class="headerlink" title="为什么要迭代器"></a>为什么要迭代器</h2><p>如果不用迭代器，也可以对ArrayList进行迭代。我们直接让ArrayList implements Iterator，增加一个成员变量来记录迭代的位置。这个时候ArrayList “is-a” Iterator。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">class ArrayList&lt;E&gt; implements Iterator &#123;</span><br><span class="line">    private int next = 0; // index of the next element to return</span><br><span class="line"></span><br><span class="line">    // 其它成员</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">   @Override</span><br><span class="line">   boolean hasNext(); // 是否迭代到尾部</span><br><span class="line"></span><br><span class="line">   @Override</span><br><span class="line">   E next();          // 返回当前元素，并且后移迭代位置</span><br><span class="line"></span><br><span class="line">   // 其它方法</span><br><span class="line">   ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">/* client 对ArrayList进行迭代的时候是这样的 */</span><br><span class="line">ArrayList a = new ArrayList()</span><br><span class="line">// 对a进行了很多插入删除操作后</span><br><span class="line">while (a.hasNext()) &#123;</span><br><span class="line">    doSomething(a.next());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这种实现方式会有什么问题？</p>
+<ul>
+<li>只支持单向迭代。</li>
+<li>一次只支持一个迭代。如果想同时进行两个迭代（比如一个快的，一个慢的），不支持。</li>
+</ul>
+<h2 id="不用内部类，用单独的类实现"><a href="#不用内部类，用单独的类实现" class="headerlink" title="不用内部类，用单独的类实现"></a>不用内部类，用单独的类实现</h2><p>假如用单独的ArrayListIterator类实现，那么ArrayListIterator类一定要关联一个ArrayList。如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">class ArrayListIterator&lt;E&gt; implements Iterator &#123;</span><br><span class="line">    private int next;     // index of the next element to return</span><br><span class="line">    private ArrayList&lt;E&gt; c; // 迭代器需要关联的集合</span><br><span class="line"></span><br><span class="line">    &lt;E&gt; ArrayListIterator(ArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        next = 0;</span><br><span class="line">        this.c = c;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    boolean hasNext() &#123;</span><br><span class="line">        return next != c.size();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    E next() &#123;</span><br><span class="line">        return c.get(next++)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>你还可以实现一个逆向迭代器如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">class ReverseArrayListIterator&lt;E&gt; implements Iterator &#123;</span><br><span class="line">    private int next;     // index of the next element to return</span><br><span class="line">    private ArrayList&lt;E&gt; c; // 迭代器需要关联的集合</span><br><span class="line"></span><br><span class="line">    &lt;E&gt; ReverseArrayListIterator(ArrayList&lt;E&gt; c) &#123;</span><br><span class="line">        next = c.size();</span><br><span class="line">        this.c = c;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    boolean hasNext() &#123;</span><br><span class="line">        return next != -1;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    E next() &#123;</span><br><span class="line">        return c.get(next--);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这种方式，貌似解决了之前的“只能单向迭代”以及一次只能用一个迭代器两个问题。但是产生了新的问题：</p>
+<ul>
+<li>Iterator中的每个方法都要访问及操作内部集合的内部数据，但是都是通过Collection的public方法，不能直接操作Collection内部数据，不仅效率低，而且访问权限受限制。<br>这种实现方式，其实已经很接近内部类的实现方式了。内部类的实现方式解决了访问集合内部数据的限制问题。</li>
+</ul>
+<h2 id="看内部类的实现方法怎么表演"><a href="#看内部类的实现方法怎么表演" class="headerlink" title="看内部类的实现方法怎么表演"></a>看内部类的实现方法怎么表演</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">class ArrayList&lt;E&gt; &#123;</span><br><span class="line">    Object[] elementData;</span><br><span class="line">    private int size;</span><br><span class="line">    // 其它成员及方法</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    class ListItr implements Iterator &#123;</span><br><span class="line">        private int next = 0;  // index of the next element to return</span><br><span class="line"></span><br><span class="line">        @Override</span><br><span class="line">        boolean hasNext() &#123;</span><br><span class="line">            return next == size; // 内部类可以直接访问外部类任何元素，包括成员和方法</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        @Override</span><br><span class="line">        E next() &#123;</span><br><span class="line">            return elementData[next++];</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Iterator iterator() &#123;</span><br><span class="line">        return new ListItr();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">/* Client 调用代码*/</span><br><span class="line">ArrayList&lt;String&gt; words = ArrayList&lt;&gt;();</span><br><span class="line"></span><br><span class="line">// 插入删除一些String</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">Iterator itr = words.iterator();</span><br><span class="line">while (itr.hasNext()) &#123;</span><br><span class="line">    doSomething(itr.next());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>内部类实现的优势：</p>
+<ul>
+<li>迭代器(内部类)可以直接访问集合(外部类)数据，效率高。</li>
+<li>迭代器实现放在集合类内部，代码组织更好。</li>
+<li>也可以在集合内部创建各种迭代器类。</li>
+</ul>
+<p>为什么内部类能够无障碍访问外部类元素，因为内部类有个隐藏的引用，指向外部类对象。通过这个引用就可以访问到外部类对象的元素。</p>
+<h2 id="内部类杀手锏"><a href="#内部类杀手锏" class="headerlink" title="内部类杀手锏"></a>内部类杀手锏</h2><blockquote>
+<p>如果没有内部类提供的、可以继承多个具体的或抽象的类的能力，一些设计与编程问题就很难解决。从这个角度看，内部类使得多重继承的解决方案变得完整。接口解决了部分问题，而内部类有效地实现了“多重继承”。也就是说，内部类允许继承多个非接口类型（类或抽象类）。</p>
+</blockquote>
+<p>我们知道Java中没有多继承，只有单继承多implements。有人可能会说，可以implements多个接口，不就相当于多继承吗？非也。接口中不能有成员变量，也就是说一个类，只能从一个父类继承成员变量。那有什么办法能让达到多继承的效果呢？用内部类。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">class A &#123;</span><br><span class="line">    private int i;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class B &#123;</span><br><span class="line">    private int j;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class C extends A &#123;</span><br><span class="line">    B makeB() &#123;</span><br><span class="line">        // 返回匿名内部类</span><br><span class="line">        return new B() &#123;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">/* Client 代码*/</span><br><span class="line">C c;</span><br><span class="line">B b = c.makeB(); // 这个b可以看做B的一个匿名子类的对象，同时它的内部又有一个隐藏的指向C对象的引用。C又是A的子类。</span><br></pre></td></tr></table></figure>
+
+<p>通过这种方式，可以达到多继承的效果。细节可以参看 <em>Thinking in java On Java 8</em></p>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><p>Thinking in java on java 8</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/ArrayList/" rel="tag"># ArrayList</a>
+              <a href="/tags/%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" rel="tag"># 源码分析</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/" rel="next" title="Java-ArrayList-源码分析（一）">
+      Java-ArrayList-源码分析（一） <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    
+  <div class="comments">
+    <div id="disqus_thread">
+      <noscript>Please enable JavaScript to view the comments powered by Disqus.</noscript>
+    </div>
+  </div>
+  
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9F%A5%E8%AF%A2%E4%B8%80%E4%B8%AA%E5%AF%B9%E8%B1%A1%E7%9A%84%E7%B4%A2%E5%BC%95%E4%BD%8D%E7%BD%AE"><span class="nav-number">1.</span> <span class="nav-text">查询一个对象的索引位置</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%BF%AD%E4%BB%A3%E5%99%A8%E5%92%8C%E5%86%85%E9%83%A8%E7%B1%BB"><span class="nav-number">2.</span> <span class="nav-text">迭代器和内部类</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E8%BF%AD%E4%BB%A3%E5%99%A8"><span class="nav-number">2.1.</span> <span class="nav-text">为什么要迭代器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%8D%E7%94%A8%E5%86%85%E9%83%A8%E7%B1%BB%EF%BC%8C%E7%94%A8%E5%8D%95%E7%8B%AC%E7%9A%84%E7%B1%BB%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.2.</span> <span class="nav-text">不用内部类，用单独的类实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%9C%8B%E5%86%85%E9%83%A8%E7%B1%BB%E7%9A%84%E5%AE%9E%E7%8E%B0%E6%96%B9%E6%B3%95%E6%80%8E%E4%B9%88%E8%A1%A8%E6%BC%94"><span class="nav-number">2.3.</span> <span class="nav-text">看内部类的实现方法怎么表演</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%85%E9%83%A8%E7%B1%BB%E6%9D%80%E6%89%8B%E9%94%8F"><span class="nav-number">2.4.</span> <span class="nav-text">内部类杀手锏</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">3.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Qisheng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">categories</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">tags</span>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Qisheng</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<script>
+  function loadCount() {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://qi-sheng-bo-ke.disqus.com/count.js';
+    s.id = 'dsq-count-scr';
+    (d.head || d.body).appendChild(s);
+  }
+  // defer loading until the whole page loading is completed
+  window.addEventListener('load', loadCount, false);
+</script>
+<script>
+  var disqus_config = function() {
+    this.page.url = "http://example.com/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/";
+    this.page.identifier = "2020/06/07/Java-ArrayList-源码分析-二/";
+    this.page.title = "Java-ArrayList-源码分析（二）";
+    };
+  NexT.utils.loadComments(document.querySelector('#disqus_thread'), () => {
+    if (window.DISQUS) {
+      DISQUS.reset({
+        reload: true,
+        config: disqus_config
+      });
+    } else {
+      var d = document, s = d.createElement('script');
+      s.src = 'https://qi-sheng-bo-ke.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', '' + +new Date());
+      (d.head || d.body).appendChild(s);
+    }
+  });
+</script>
+
+</body>
+</html>
