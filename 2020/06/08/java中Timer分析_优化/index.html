@@ -23,20 +23,20 @@
   <meta name="description" content="Java SDK的Timer是一个比较方便的定时器工具类，用来定时或周期性地执行用户提交的任务。其主要解决了简单的任务调度问题，让用户可以简单地提交和取消定时任务。同时Timer的线程安全性也保证了多个线程可以并发地对同一个任务进行调度和取消。 本博文尝试分析一下SDK中的Timer实现。大致从几个方面去介绍：  What : Timer是什么，解决什么问题，怎么使用。 How&amp;Why :">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Java SDK中Timer的分析">
-<meta property="og:url" content="http://example.com/2020/06/07/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/index.html">
+<meta property="og:url" content="http://example.com/2020/06/08/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/index.html">
 <meta property="og:site_name" content="Qisheng&#39;s Blog">
 <meta property="og:description" content="Java SDK的Timer是一个比较方便的定时器工具类，用来定时或周期性地执行用户提交的任务。其主要解决了简单的任务调度问题，让用户可以简单地提交和取消定时任务。同时Timer的线程安全性也保证了多个线程可以并发地对同一个任务进行调度和取消。 本博文尝试分析一下SDK中的Timer实现。大致从几个方面去介绍：  What : Timer是什么，解决什么问题，怎么使用。 How&amp;Why :">
 <meta property="og:locale">
-<meta property="og:image" content="http://example.com/.com//yangqisheng/Downloads/Timer.jpg">
-<meta property="article:published_time" content="2020-06-06T16:00:00.000Z">
-<meta property="article:modified_time" content="2023-04-21T09:47:40.382Z">
+<meta property="og:image" content="http://image.dzmiba.com/Timer.jpg">
+<meta property="article:published_time" content="2020-06-07T16:00:00.000Z">
+<meta property="article:modified_time" content="2023-04-21T10:25:03.076Z">
 <meta property="article:author" content="Qisheng">
 <meta property="article:tag" content="Timer">
 <meta property="article:tag" content="JDK源码">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://example.com/.com//yangqisheng/Downloads/Timer.jpg">
+<meta name="twitter:image" content="http://image.dzmiba.com/Timer.jpg">
 
-<link rel="canonical" href="http://example.com/2020/06/07/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/">
+<link rel="canonical" href="http://example.com/2020/06/08/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/">
 
 
 <script id="page-configurations">
@@ -193,7 +193,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2020/06/07/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2020/06/08/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -216,14 +216,14 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2020-06-07 00:00:00" itemprop="dateCreated datePublished" datetime="2020-06-07T00:00:00+08:00">2020-06-07</time>
+              <time title="Created: 2020-06-08 00:00:00" itemprop="dateCreated datePublished" datetime="2020-06-08T00:00:00+08:00">2020-06-08</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-21 17:47:40" itemprop="dateModified" datetime="2023-04-21T17:47:40+08:00">2023-04-21</time>
+                <time title="Modified: 2023-04-21 18:25:03" itemprop="dateModified" datetime="2023-04-21T18:25:03+08:00">2023-04-21</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -244,8 +244,8 @@
       </span>
       <span class="post-meta-item-text">Disqus: </span>
     
-    <a title="disqus" href="/2020/06/07/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/#disqus_thread" itemprop="discussionUrl">
-      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2020/06/07/java中Timer分析_优化/" itemprop="commentCount"></span>
+    <a title="disqus" href="/2020/06/08/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/#disqus_thread" itemprop="discussionUrl">
+      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2020/06/08/java中Timer分析_优化/" itemprop="commentCount"></span>
     </a>
   </span>
   
@@ -274,6 +274,8 @@
 <blockquote>
 <p>Java 5.0 introduced the <code>java.util.concurrent</code> package and one of the concurrency utilities therein is the <a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ScheduledThreadPoolExecutor.html"><code>ScheduledThreadPoolExecutor</code></a> which is a thread pool for repeatedly executing tasks at a given rate or delay. It is effectively a more versatile replacement for the <code>Timer</code>/<code>TimerTask</code> combination, as it allows multiple service threads, accepts various time units, and doesn’t require subclassing <code>TimerTask</code> (just implement <code>Runnable</code>). Configuring <code>ScheduledThreadPoolExecutor</code> with one thread makes it equivalent to <code>Timer</code>.</p>
 </blockquote>
+<span id="more"></span>
+
 <h3 id="Timer的使用场景案例"><a href="#Timer的使用场景案例" class="headerlink" title="Timer的使用场景案例"></a>Timer的使用场景案例</h3><p>tomcat源码example中有个snake的示例程序。功能是使用websocket实现一个贪吃蛇的游戏。每隔100ms，程序需要更新贪吃蛇在屏幕中的位置。那么更新位置信息就可以设置成一个周期性任务。下面是snake程序的代码片段。</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SnakeTimer</span> </span>&#123;</span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">static</span> Timer gameTimer = <span class="keyword">null</span>;</span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> TICK_DELAY = <span class="number">100</span>;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 启动定时执行器</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">startTimer</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 创建一个定时执行器</span></span><br><span class="line">    gameTimer = <span class="keyword">new</span> Timer(SnakeTimer.class.getSimpleName() + <span class="string">&quot; Timer&quot;</span>);</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 向定时执行器提交一个周期性任务。</span></span><br><span class="line">    gameTimer.scheduleAtFixedRate(<span class="keyword">new</span> TimerTask() &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                tick();  <span class="comment">// 更新位置信息</span></span><br><span class="line">            &#125; <span class="keyword">catch</span> (RuntimeException e) &#123;</span><br><span class="line">                log.error(<span class="string">&quot;Caught to prevent timer from shutting down&quot;</span>, e);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;, TICK_DELAY, TICK_DELAY);</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="function"><span class="keyword">protected</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">tick</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      StringBuilder sb = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">      <span class="keyword">for</span> (Iterator&lt;Snake&gt; iterator = SnakeTimer.getSnakes().iterator();</span><br><span class="line">              iterator.hasNext();) &#123;</span><br><span class="line">          Snake snake = iterator.next();</span><br><span class="line">          snake.update(SnakeTimer.getSnakes());</span><br><span class="line">          sb.append(snake.getLocationsJson());</span><br><span class="line">          <span class="keyword">if</span> (iterator.hasNext()) &#123;</span><br><span class="line">              sb.append(<span class="string">&#x27;,&#x27;</span>);</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      broadcast(String.format(<span class="string">&quot;&#123;\&quot;type\&quot;: \&quot;update\&quot;, \&quot;data\&quot; : [%s]&#125;&quot;</span>,</span><br><span class="line">              sb.toString()));</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">stopTimer</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      <span class="keyword">if</span> (gameTimer != <span class="keyword">null</span>) &#123;</span><br><span class="line">          gameTimer.cancel();</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;使用Timer比较简单，创建一个Timer，然后向Timer提交一个任务。Timer后台线程会在指定的时间自动执行任务。向Timer提交任务主要有两个方法。```schedule```和```scheduleAtFixedRate```，一个是提交一次性任务，一个是提交周期性任务。</span><br></pre></td></tr></table></figure>
 
@@ -296,7 +298,7 @@
 
 <p>我们来看看<code>TimerThread.run()</code>的实现。就一个mainLoop循环。外面用try包裹一下，有个finally块负责清理queue。我们看mainLoop是不会抛异常的(queue.wait可能会抛的InterruptedException被mainLoop内部catch住了，task.run也不会抛异常)，为什么TimerThread.run里面要将mainLoop包在try finally块里面呢？原因在于：虽然TimerThread本身在执行mainLoop时不会抛InterruptedExecption，但是外部用户线程可以向TimerThread发送中断信号，于是mainLoop得用try finally块包裹一下。</p>
 <p>下面是一个概要图。</p>
-<p><img src="/.com//yangqisheng/Downloads/Timer.jpg" alt="Timer"></p>
+<p><img src="http://image.dzmiba.com/Timer.jpg" alt="Timer"></p>
 </li>
 </ol>
 <h3 id="2-2-优点和局限"><a href="#2-2-优点和局限" class="headerlink" title="2.2 优点和局限"></a>2.2 优点和局限</h3><p>Timer的优点：</p>
@@ -313,7 +315,7 @@
 <h4 id="3-1-2-Timer内部循环线程对Task也加锁"><a href="#3-1-2-Timer内部循环线程对Task也加锁" class="headerlink" title="3.1.2 Timer内部循环线程对Task也加锁"></a>3.1.2 Timer内部循环线程对Task也加锁</h4><p>从上面Timer内部mainLoop代码中看到，内部线程从queue中取出<strong>最小任务</strong>后，使用了<code>synchronized(task.lock)</code>来修改task的数据，包括修改task.state, 将task重新放回queue。为什么要对task锁一下呢。主要是因为，在task放入Timer之后，可能有用户线程对task执行cancel操作，修改task.state。看下面TimerTask.cancel方法，也加锁了。</p>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">cancel</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">synchronized</span>(lock) &#123;</span><br><span class="line">        <span class="keyword">boolean</span> result = (state == SCHEDULED);</span><br><span class="line">        state = CANCELLED;</span><br><span class="line">        <span class="keyword">return</span> result;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h4 id="3-1-3-TimerThread-newTaskMayBeScheduled起什么作用"><a href="#3-1-3-TimerThread-newTaskMayBeScheduled起什么作用" class="headerlink" title="3.1.3 TimerThread.newTaskMayBeScheduled起什么作用"></a>3.1.3 TimerThread.newTaskMayBeScheduled起什么作用</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">```java</span><br><span class="line">/*</span><br><span class="line">Terminates this timer, discarding any currently scheduled tasks. Does not interfere with a currently executing task (if it exists). Once a timer has been terminated, its execution thread terminates gracefully, and no more tasks may be scheduled on it.</span><br><span class="line">Note that calling this method from within the run method of a timer task that was invoked by this timer absolutely guarantees that the ongoing task execution is the last task execution that will ever be performed by this timer.</span><br><span class="line">This method may be called repeatedly; the second and subsequent calls have no effect.</span><br><span class="line">*/</span><br><span class="line">public void cancel() &#123;</span><br><span class="line">    synchronized(queue) &#123;</span><br><span class="line">        thread.newTasksMayBeScheduled = false;</span><br><span class="line">        queue.clear();</span><br><span class="line">        queue.notify();  // In case queue was already empty.</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<h4 id="3-1-3-TimerThread-newTaskMayBeScheduled起什么作用"><a href="#3-1-3-TimerThread-newTaskMayBeScheduled起什么作用" class="headerlink" title="3.1.3 TimerThread.newTaskMayBeScheduled起什么作用"></a>3.1.3 TimerThread.newTaskMayBeScheduled起什么作用</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">```java</span><br><span class="line">/**</span><br><span class="line">Terminates this timer, discarding any currently scheduled tasks. Does not interfere with a currently executing task (if it exists). Once a timer has been terminated, its execution thread terminates gracefully, and no more tasks may be scheduled on it.</span><br><span class="line">Note that calling this method from within the run method of a timer task that was invoked by this timer absolutely guarantees that the ongoing task execution is the last task execution that will ever be performed by this timer.</span><br><span class="line">This method may be called repeatedly; the second and subsequent calls have no effect.</span><br><span class="line">*/</span><br><span class="line">public void cancel() &#123;</span><br><span class="line">    synchronized(queue) &#123;</span><br><span class="line">        thread.newTasksMayBeScheduled = false;</span><br><span class="line">        queue.clear();</span><br><span class="line">        queue.notify();  // In case queue was already empty.</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>最后一行代码，queue.notify()起什么作用？注释说”In case queue was already empty”是什么意思？这是为了确保TimerThread停止下来。再回到TimerThread.mainLoop代码，可以看到，如果外部线程调用Timer.cancel时，TimerThread正在执行任务，当任务执行完成后，mainLoop会终止下来。但是如果当外部Timer.cancel时，queue已经空了，TimerThread阻塞在<code>queue.wait()</code>上，这个时候Timer.cancel不调用<code>queue.notify()</code>，TimerThread将永远阻塞在那里，不能终止。</p>
 <h2 id="四、Timer使用场景"><a href="#四、Timer使用场景" class="headerlink" title="四、Timer使用场景"></a>四、Timer使用场景</h2><p>Timer是Java SDK1.3引入的，SDK1.5时引入了ScheduledThreadPoolExecutor更能更强大，也更稳定，更精确。大多数时候，应该使用ScheduledThreadPoolExecutor。Timer优势在于使用简单，轻量级，比较适合轻量级任务且精度要求不高的场景，比如周期性发送心跳包，周期性清理缓存，周期性更新状态。</p>
@@ -335,11 +337,11 @@
 
         
     <div class="post-nav">
-      <div class="post-nav-item"></div>
       <div class="post-nav-item">
-    <a href="/2020/06/07/Python%E4%B8%AD%E7%9A%84iterable%E5%92%8Citerator/" rel="next" title="Python中的iterable和iterator">
-      Python中的iterable和iterator <i class="fa fa-chevron-right"></i>
+    <a href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/" rel="prev" title="Java-ArrayList-源码分析（一）">
+      <i class="fa fa-chevron-left"></i> Java-ArrayList-源码分析（一）
     </a></div>
+      <div class="post-nav-item"></div>
     </div>
       </footer>
     
@@ -531,8 +533,8 @@
 </script>
 <script>
   var disqus_config = function() {
-    this.page.url = "http://example.com/2020/06/07/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/";
-    this.page.identifier = "2020/06/07/java中Timer分析_优化/";
+    this.page.url = "http://example.com/2020/06/08/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/";
+    this.page.identifier = "2020/06/08/java中Timer分析_优化/";
     this.page.title = "Java SDK中Timer的分析";
     };
   NexT.utils.loadComments(document.querySelector('#disqus_thread'), () => {
