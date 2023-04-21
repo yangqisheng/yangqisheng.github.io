@@ -180,7 +180,7 @@ public class SnakeTimer {
    }
    ```
 
-   我们来看看```TimerThread.run()```的实现。就一个mainLoop循环。外面用try包裹一下，有个finally块负责清理queue。我们看mainLoop是不会抛异常的(queue.wait可能会抛的InterruptedException被mainLoop内部catch住了，task.run也不会抛异常)，为什么TimerThread.run里面要将mainLoop包在try finally块里面呢？原因在于：虽然TimerThread本身在执行mainLoop时不会抛InterruptedExecption，但是外部用户线程可以向TimerThread发送中断信号，于是mainLoop得用try finally块包裹一下。
+   我们来看看```TimerThread.run()```的实现。就一个mainLoop循环。外面用try包裹一下，有个finally块负责清理queue。我们看mainLoop是不会抛异常的(queue.wait可能会抛的InterruptedException被mainLoop内部catch住了，task.run也不会抛异常)，为什么TimerThread.run里面要将mainLoop包在try finally块里面呢？原因在于：虽然TimerThread本身在执行mainLoop时不会抛InterruptedExecption，但是外部用户线程可以向TimerThread发送中断信号，于是mainLoop得用try finally块包裹一下。还有一个**重要的原因**，如果运行的UserTimerTask遇到了unchecked exception，那么就会进入到finally块里，将这个Timer设置成terminate状态了。这也是Timer的一个局限。
 
    下面是一个概要图。
 
@@ -199,6 +199,7 @@ Timer的优点：
 Timer的局限：
 
 1. 无法保证一个任务在精确的时间执行。由于Timer内部只有一个线程去执行任务，假如线程在执行某个任务过程中耗费了太多时间，或者卡住了，那么Timer内部队列里面的任务都会受到影响，因为从内部队列中取任务的也是这个内部线程。它卡住了，就不能保证队列中的任务在预期的时间被取出来执行。所以执行时间比较短的轻量级定时task比较适合使用Timer。
+1. 如果某个UserTimeTask运行时出现unchecked exception(比如运行时异常)，那么当前的Timer实例会马上变成terminated状态（就像外部调用了timer.cancel()）。某本书里称这种情况叫“thread leaking”。如果此时再往timer里面提交任务，会触发IllegalStateException: Timer already cancelled。
 
 
 
@@ -244,6 +245,85 @@ public void cancel() {
 ```
 
 最后一行代码，queue.notify()起什么作用？注释说"In case queue was already empty"是什么意思？这是为了确保TimerThread停止下来。再回到TimerThread.mainLoop代码，可以看到，如果外部线程调用Timer.cancel时，TimerThread正在执行任务，当任务执行完成后，mainLoop会终止下来。但是如果当外部Timer.cancel时，queue已经空了，TimerThread阻塞在```queue.wait()```上，这个时候Timer.cancel不调用```queue.notify()```，TimerThread将永远阻塞在那里，不能终止。
+
+#### 3.1.4 schedule还是scheduleAtFixedRate?
+
+向Timer提交周期性任务的时候，是使用schedule还是scheduleAtFixedRate。有本书里，称schedule是schedule at fixed delay，和scheduleAtFixedRate对应。那到底是什么是fixed dealy，什么是fixed rate呢？举一个例子，假如我现在有一个周期任务A，自身运行时间很短，希望这个任务每10s运行一次；又有一个一次性任务B，运行时间是40s。按照下面的代码提交任务，运行情况是怎么样呢？
+
+```java
+Timer timer = new Timer();
+
+timer.schedule(B, 0, 0); // 提交一次性任务B，B运行时间40s
+timer.schedule(A, 0, 10*1000); // 提交周期性任务，每10s运行一次。以fixed delay方式，
+```
+
+fix delay是指一个任务被延误执行后，不管之前错过了多少次执行，继续以固定的delay时间（这里就是10s）执行后续任务实例。如下图：
+
+![fixed_rate](http://image.dzmiba.com/fixed_delay.jpg)
+
+再看下面以fixed rate方式提交任务的代码，以及运行情况
+
+```java
+Timer timer = new Timer();
+
+timer.schedule(B, 0, 0); // 提交一次性任务B，B运行时间40s
+timer.scheduleAtFixedRate(A, 0, 10*1000); // 提交周期性任务，每10s运行一次。以fixed rate方式，
+```
+
+![fixed_rate](http://image.dzmiba.com/fixed_rate.jpg)
+
+我们可以看到fixed rate方式，当一个任务被延误后，它在后面会把错误的执行次数给补上。这种方式，可能会出现一个被延误执行的任务，在某个时间连续执行多次。
+
+
+
+上面两种方式具体是怎么实现的呢？jdk Timer里面用了一个比较巧妙的方式，看代码：
+
+```java
+private void mainLoop() {
+        while (true) {
+            try {
+                TimerTask task;
+                boolean taskFired;
+                synchronized(queue) {
+                    // Wait for queue to become non-empty
+                    while (queue.isEmpty() && newTasksMayBeScheduled)
+                        queue.wait();
+                    if (queue.isEmpty())
+                        break; // Queue is empty and will forever remain; die
+
+                    // Queue nonempty; look at first evt and do the right thing
+                    long currentTime, executionTime;
+                    task = queue.getMin();
+                    synchronized(task.lock) {
+                        if (task.state == TimerTask.CANCELLED) {
+                            queue.removeMin();
+                            continue;  // No action required, poll queue again
+                        }
+                        currentTime = System.currentTimeMillis();
+                        executionTime = task.nextExecutionTime;
+                        if (taskFired = (executionTime<=currentTime)) {
+                            if (task.period == 0) { // Non-repeating, remove
+                                queue.removeMin();
+                                task.state = TimerTask.EXECUTED;
+                            } else { // Repeating task, reschedule
+                                queue.rescheduleMin(
+                                  task.period<0 ? currentTime   - task.period
+                                                : executionTime + task.period);
+                            }
+                        }
+                    }
+                    if (!taskFired) // Task hasn't yet fired; wait
+                        queue.wait(executionTime - currentTime);
+                }
+                if (taskFired)  // Task fired; run it, holding no locks
+                    task.run();
+            } catch(InterruptedException e) {
+            }
+        }
+    }
+```
+
+还是Timer.mainLoop代码，秘密就在```task.period < 0 ? currentTime - task.period : executionTime + task.period```这里。当使用schedule提交周期任务时，这个任务的period被取反成负数了，下一次执行的时间是**当前时间** + 任务本身的period。
 
 ## 四、Timer使用场景
 
