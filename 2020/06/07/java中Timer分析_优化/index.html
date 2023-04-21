@@ -20,28 +20,36 @@
     var CONFIG = {"hostname":"example.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Qisheng&#39;s Blog">
-<meta property="og:url" content="http://example.com/index.html">
+  <meta name="description" content="Java SDK的Timer是一个比较方便的定时器工具类，用来定时或周期性地执行用户提交的任务。其主要解决了简单的任务调度问题，让用户可以简单地提交和取消定时任务。同时Timer的线程安全性也保证了多个线程可以并发地对同一个任务进行调度和取消。 本博文尝试分析一下SDK中的Timer实现。大致从几个方面去介绍：  What : Timer是什么，解决什么问题，怎么使用。 How&amp;Why :">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java SDK中Timer的分析">
+<meta property="og:url" content="http://example.com/2020/06/07/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/index.html">
 <meta property="og:site_name" content="Qisheng&#39;s Blog">
+<meta property="og:description" content="Java SDK的Timer是一个比较方便的定时器工具类，用来定时或周期性地执行用户提交的任务。其主要解决了简单的任务调度问题，让用户可以简单地提交和取消定时任务。同时Timer的线程安全性也保证了多个线程可以并发地对同一个任务进行调度和取消。 本博文尝试分析一下SDK中的Timer实现。大致从几个方面去介绍：  What : Timer是什么，解决什么问题，怎么使用。 How&amp;Why :">
 <meta property="og:locale">
+<meta property="og:image" content="http://example.com/.com//yangqisheng/Downloads/Timer.jpg">
+<meta property="article:published_time" content="2020-06-06T16:00:00.000Z">
+<meta property="article:modified_time" content="2023-04-21T09:47:40.382Z">
 <meta property="article:author" content="Qisheng">
+<meta property="article:tag" content="Timer">
+<meta property="article:tag" content="JDK源码">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/.com//yangqisheng/Downloads/Timer.jpg">
 
-<link rel="canonical" href="http://example.com/">
+<link rel="canonical" href="http://example.com/2020/06/07/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'zh-Hans'
   };
 </script>
 
-  <title>Qisheng's Blog</title>
+  <title>Java SDK中Timer的分析 | Qisheng's Blog</title>
   
 
 
@@ -178,300 +186,10 @@
         <div class="content-wrap">
           
 
-          <div class="content index posts-expand">
+          <div class="content post posts-expand">
             
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Qisheng">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Qisheng's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/" class="post-title-link" itemprop="url">Java-ArrayList-源码分析（一）</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2020-06-07 00:00:00" itemprop="dateCreated datePublished" datetime="2020-06-07T00:00:00+08:00">2020-06-07</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-12-05 23:13:16" itemprop="dateModified" datetime="2021-12-05T23:13:16+08:00">2021-12-05</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Disqus: </span>
-    
-    <a title="disqus" href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/#disqus_thread" itemprop="discussionUrl">
-      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2020/06/07/Java-ArrayList-源码分析-一/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
 
     
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>ArrayList是数组实现的顺序表，是泛型Collection Framwork中的一员。本博文尝试分析一下ArrayList的源码，主要是弄懂实现背后的原理，搞清楚为什么要那么实现。为此，采用循序渐进，逐步深入的分析方式。</p>
-<ul>
-<li>先自己简单实现一遍</li>
-<li>对照库的实现，挨个分析库为什么要那么写，那么写有什么好处。</li>
-<li>库实现，涉及到哪些巧妙的方法。</li>
-</ul>
-<p>仔细分析起来，内容还是蛮多。为了不繁杂，博文可能需要分成多个部分，每个部分分析ArrayList中一簇功能。<br>本篇第一篇，先总体概览，再说说ArrayList Constructor。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%B8%80/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Qisheng">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Qisheng's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/" class="post-title-link" itemprop="url">Java-ArrayList-源码分析（二）</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2020-06-07 00:00:00" itemprop="dateCreated datePublished" datetime="2020-06-07T00:00:00+08:00">2020-06-07</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-12-05 23:13:26" itemprop="dateModified" datetime="2021-12-05T23:13:26+08:00">2021-12-05</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Disqus: </span>
-    
-    <a title="disqus" href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/#disqus_thread" itemprop="discussionUrl">
-      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2020/06/07/Java-ArrayList-源码分析-二/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>上一篇讲了ArrayList的几个构造函数。ArrayList的增删改查的实现，比较简单。本篇先讲一个代码效率问题，再着重讲讲ArrayList的迭代器实现。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2020/06/07/Java-ArrayList-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E4%BA%8C/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2020/06/07/Python%E4%B8%AD%E7%9A%84iterable%E5%92%8Citerator/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Qisheng">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Qisheng's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/06/07/Python%E4%B8%AD%E7%9A%84iterable%E5%92%8Citerator/" class="post-title-link" itemprop="url">Python中的iterable和iterator</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2020-06-07 00:00:00" itemprop="dateCreated datePublished" datetime="2020-06-07T00:00:00+08:00">2020-06-07</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-12-05 23:13:34" itemprop="dateModified" datetime="2021-12-05T23:13:34+08:00">2021-12-05</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Python/" itemprop="url" rel="index"><span itemprop="name">Python</span></a>
-                </span>
-            </span>
-
-          
-  
-  <span class="post-meta-item">
-    
-      <span class="post-meta-item-icon">
-        <i class="far fa-comment"></i>
-      </span>
-      <span class="post-meta-item-text">Disqus: </span>
-    
-    <a title="disqus" href="/2020/06/07/Python%E4%B8%AD%E7%9A%84iterable%E5%92%8Citerator/#disqus_thread" itemprop="discussionUrl">
-      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2020/06/07/Python中的iterable和iterator/" itemprop="commentCount"></span>
-    </a>
-  </span>
-  
-  
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>Python编程中，我们经常会遇到iterable和iterator的概念，二者之间既有区别又有联系。这篇博文就来详细说说这个话题。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2020/06/07/Python%E4%B8%AD%E7%9A%84iterable%E5%92%8Citerator/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
@@ -487,10 +205,9 @@
       <meta itemprop="name" content="Qisheng's Blog">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/06/07/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/" class="post-title-link" itemprop="url">Java SDK中Timer的分析</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          Java SDK中Timer的分析
+        </h1>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -543,7 +260,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>Java SDK的Timer是一个比较方便的定时器工具类，用来定时或周期性地执行用户提交的任务。其主要解决了简单的任务调度问题，让用户可以简单地提交和取消定时任务。同时Timer的线程安全性也保证了多个线程可以并发地对同一个任务进行调度和取消。</p>
+        <p>Java SDK的Timer是一个比较方便的定时器工具类，用来定时或周期性地执行用户提交的任务。其主要解决了简单的任务调度问题，让用户可以简单地提交和取消定时任务。同时Timer的线程安全性也保证了多个线程可以并发地对同一个任务进行调度和取消。</p>
 <p>本博文尝试分析一下SDK中的Timer实现。大致从几个方面去介绍：</p>
 <ol>
 <li>What : Timer是什么，解决什么问题，怎么使用。</li>
@@ -601,27 +318,47 @@
 <p>最后一行代码，queue.notify()起什么作用？注释说”In case queue was already empty”是什么意思？这是为了确保TimerThread停止下来。再回到TimerThread.mainLoop代码，可以看到，如果外部线程调用Timer.cancel时，TimerThread正在执行任务，当任务执行完成后，mainLoop会终止下来。但是如果当外部Timer.cancel时，queue已经空了，TimerThread阻塞在<code>queue.wait()</code>上，这个时候Timer.cancel不调用<code>queue.notify()</code>，TimerThread将永远阻塞在那里，不能终止。</p>
 <h2 id="四、Timer使用场景"><a href="#四、Timer使用场景" class="headerlink" title="四、Timer使用场景"></a>四、Timer使用场景</h2><p>Timer是Java SDK1.3引入的，SDK1.5时引入了ScheduledThreadPoolExecutor更能更强大，也更稳定，更精确。大多数时候，应该使用ScheduledThreadPoolExecutor。Timer优势在于使用简单，轻量级，比较适合轻量级任务且精度要求不高的场景，比如周期性发送心跳包，周期性清理缓存，周期性更新状态。</p>
 
-      
     </div>
 
     
     
     
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
+          <div class="post-tags">
+              <a href="/tags/Timer/" rel="tag"># Timer</a>
+              <a href="/tags/JDK%E6%BA%90%E7%A0%81/" rel="tag"># JDK源码</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2020/06/07/Python%E4%B8%AD%E7%9A%84iterable%E5%92%8Citerator/" rel="next" title="Python中的iterable和iterator">
+      Python中的iterable和iterator <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
       </footer>
+    
   </article>
   
   
   
 
 
-  
-
-
 
           </div>
           
+    
+  <div class="comments">
+    <div id="disqus_thread">
+      <noscript>Please enable JavaScript to view the comments powered by Disqus.</noscript>
+    </div>
+  </div>
+  
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -668,6 +405,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%80%E3%80%81Timer%E6%98%AF%E4%BB%80%E4%B9%88"><span class="nav-number">1.</span> <span class="nav-text">一、Timer是什么</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Timer%E7%9A%84%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF%E6%A1%88%E4%BE%8B"><span class="nav-number">1.1.</span> <span class="nav-text">Timer的使用场景案例</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%8C%E3%80%81Timer%E5%86%85%E9%83%A8%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.</span> <span class="nav-text">二、Timer内部的实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-%E5%87%A0%E4%B8%AA%E5%86%85%E9%83%A8%E7%BB%84%E4%BB%B6"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 几个内部组件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-%E4%BC%98%E7%82%B9%E5%92%8C%E5%B1%80%E9%99%90"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 优点和局限</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%89%E3%80%81Timer%E5%86%85%E9%83%A8%E5%AE%9E%E7%8E%B0%E7%9A%84%E4%B8%80%E4%BA%9B%E5%88%86%E6%9E%90"><span class="nav-number">3.</span> <span class="nav-text">三、Timer内部实现的一些分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-Timer%E5%86%85%E9%83%A8%E7%BA%BF%E7%A8%8B%E5%AE%89%E5%85%A8%E6%80%A7"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 Timer内部线程安全性</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-1-%E5%86%85%E9%83%A8queue%E7%9A%84%E7%BA%BF%E7%A8%8B%E5%AE%89%E5%85%A8%E6%80%A7"><span class="nav-number">3.1.1.</span> <span class="nav-text">3.1.1 内部queue的线程安全性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-2-Timer%E5%86%85%E9%83%A8%E5%BE%AA%E7%8E%AF%E7%BA%BF%E7%A8%8B%E5%AF%B9Task%E4%B9%9F%E5%8A%A0%E9%94%81"><span class="nav-number">3.1.2.</span> <span class="nav-text">3.1.2 Timer内部循环线程对Task也加锁</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-3-TimerThread-newTaskMayBeScheduled%E8%B5%B7%E4%BB%80%E4%B9%88%E4%BD%9C%E7%94%A8"><span class="nav-number">3.1.3.</span> <span class="nav-text">3.1.3 TimerThread.newTaskMayBeScheduled起什么作用</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9B%9B%E3%80%81Timer%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-number">4.</span> <span class="nav-text">四、Timer使用场景</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -790,6 +528,26 @@
   }
   // defer loading until the whole page loading is completed
   window.addEventListener('load', loadCount, false);
+</script>
+<script>
+  var disqus_config = function() {
+    this.page.url = "http://example.com/2020/06/07/java%E4%B8%ADTimer%E5%88%86%E6%9E%90_%E4%BC%98%E5%8C%96/";
+    this.page.identifier = "2020/06/07/java中Timer分析_优化/";
+    this.page.title = "Java SDK中Timer的分析";
+    };
+  NexT.utils.loadComments(document.querySelector('#disqus_thread'), () => {
+    if (window.DISQUS) {
+      DISQUS.reset({
+        reload: true,
+        config: disqus_config
+      });
+    } else {
+      var d = document, s = d.createElement('script');
+      s.src = 'https://qi-sheng-bo-ke.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', '' + +new Date());
+      (d.head || d.body).appendChild(s);
+    }
+  });
 </script>
 
 </body>
