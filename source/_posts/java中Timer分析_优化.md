@@ -13,7 +13,7 @@ Java SDK的Timer是一个比较方便的定时器工具类，用来定时或周�
 2. How&Why : 内部是怎么实现的，为什么要那么实现。有哪些优点和局限。
 3. When : 什么场景下适合使用Timer。
 
-## 一、Timer是什么
+## Timer是什么
 
 > A facility for threads to schedule tasks for future execution in a background thread. Tasks may be scheduled for one-time execution, or for repeated execution at regular intervals.
 
@@ -75,9 +75,9 @@ public class SnakeTimer {
 
 使用Timer比较简单，创建一个Timer，然后向Timer提交一个任务。Timer后台线程会在指定的时间自动执行任务。向Timer提交任务主要有两个方法。```schedule```和```scheduleAtFixedRate```，一个是提交一次性任务，一个是提交周期性任务。
 
-## 二、Timer内部的实现
+## Timer内部的实现
 
-### 2.1 几个内部组件
+### 几个内部组件
 
 根据Timer所要实现的功能需求，大致可以分解出几个组件。
 
@@ -190,7 +190,7 @@ public class SnakeTimer {
 
    
 
-### 2.2 优点和局限
+### 优点和局限
 
 Timer的优点：
 
@@ -203,17 +203,15 @@ Timer的局限：
 1. 无法保证一个任务在精确的时间执行。由于Timer内部只有一个线程去执行任务，假如线程在执行某个任务过程中耗费了太多时间，或者卡住了，那么Timer内部队列里面的任务都会受到影响，因为从内部队列中取任务的也是这个内部线程。它卡住了，就不能保证队列中的任务在预期的时间被取出来执行。所以执行时间比较短的轻量级定时task比较适合使用Timer。
 1. 如果某个UserTimeTask运行时出现unchecked exception(比如运行时异常)，那么当前的Timer实例会马上变成terminated状态（就像外部调用了timer.cancel()）。某本书里称这种情况叫“thread leaking”。如果此时再往timer里面提交任务，会触发IllegalStateException: Timer already cancelled。
 
+## Timer内部实现的一些分析
 
+### Timer内部线程安全性
 
-## 三、Timer内部实现的一些分析
-
-### 3.1 Timer内部线程安全性
-
-#### 3.1.1 内部queue的线程安全性
+#### 内部queue的线程安全性
 
 外部用户向Timer提交任务时，Timer需要将任务加到内部queue中，同时Timer内部thread需要从queue中取出任务执行，这里有race condition，queue必须要加锁。所以内部线程while循环里面，对queue的访问，使用了```synchronized(queue)```。外部线程调用schedule或者scheduleAtFixedRate时，同样也使用了```synchronized(queue)```。外部线程调用cancel时，需要清空queue，也一样使用了同步锁。
 
-#### 3.1.2 Timer内部循环线程对Task也加锁
+#### Timer内部循环线程对Task也加锁
 
 从上面Timer内部mainLoop代码中看到，内部线程从queue中取出**最小任务**后，使用了```synchronized(task.lock)```来修改task的数据，包括修改task.state, 将task重新放回queue。为什么要对task锁一下呢。主要是因为，在task放入Timer之后，可能有用户线程对task执行cancel操作，修改task.state。看下面TimerTask.cancel方法，也加锁了。
 
@@ -227,7 +225,7 @@ Timer的局限：
     }
 ```
 
- #### 3.1.3 TimerThread.newTaskMayBeScheduled起什么作用
+### TimerThread.newTaskMayBeScheduled起什么作用
 
 ```TimerThread```内部有个```newTaskMayBeScheduled```有什么作用呢，这个变量标识Timer不会接收新任务了，Timer执行完队列里面的任务可能会终止。初始时，这个标识是true，外部对调用Timer.cancel时，会将该标识置false，同时清空队列。如果之后还有外部线程再提交任务，会触发异常，但是不会影响当前正在执行的任务。看下面Timer.cancel的代码。
 
@@ -248,7 +246,7 @@ public void cancel() {
 
 最后一行代码，queue.notify()起什么作用？注释说"In case queue was already empty"是什么意思？这是为了确保TimerThread停止下来。再回到TimerThread.mainLoop代码，可以看到，如果外部线程调用Timer.cancel时，TimerThread正在执行任务，当任务执行完成后，mainLoop会终止下来。但是如果当外部Timer.cancel时，queue已经空了，TimerThread阻塞在```queue.wait()```上，这个时候Timer.cancel不调用```queue.notify()```，TimerThread将永远阻塞在那里，不能终止。
 
-#### 3.1.4 schedule还是scheduleAtFixedRate?
+### schedule还是scheduleAtFixedRate?
 
 向Timer提交周期性任务的时候，是使用schedule还是scheduleAtFixedRate。有本书里，称schedule是schedule at fixed delay，和scheduleAtFixedRate对应。那到底是什么是fixed dealy，什么是fixed rate呢？举一个例子，假如我现在有一个周期任务A，自身运行时间很短，希望这个任务每10s运行一次；又有一个一次性任务B，运行时间是40s。按照下面的代码提交任务，运行情况是怎么样呢？
 
@@ -274,7 +272,7 @@ timer.scheduleAtFixedRate(A, 0, 10*1000); // 提交周期性任务，每10s运�
 
 ![fixed_rate](https://dzmiba.com/fixed_rate.jpg)
 
-我们可以看到fixed rate方式，当一个任务被延误后，它在后面会把错误的执行次数给补上。这种方式，可能会出现一个被延误执行的任务，在某个时间连续执行多次。
+我们可以看到fixed rate方式，当一个任务被延误后，它在后面会把延误的执行次数给补上。这种方式，可能会出现一种情况：一个被延误执行的任务，在某个时间连续执行多次。
 
 
 
@@ -325,8 +323,8 @@ private void mainLoop() {
     }
 ```
 
-还是Timer.mainLoop代码，秘密就在```task.period < 0 ? currentTime - task.period : executionTime + task.period```这里。当使用schedule提交周期任务时，这个任务的period被取反成负数了，下一次执行的时间是**当前时间** + 任务本身的period。
+还是Timer.mainLoop代码，秘密就在```task.period < 0 ? currentTime - task.period : executionTime + task.period```这里。当使用schedule提交周期任务时，这个任务的period被取反成负数了，下一次执行的时间是**当前时间** + 任务本身的period，如果某一次任务执行被延误了，那么后续的执行依次顺延；而使用scheduleAtFixedRate提交周期任务时，下一次执行的时间是“当前任务**预期执行时间** + 任务本身的period”，即使某次任务真正的执行时间被延误了，随后的执行时间还是“预期执行时间 + 任务本身的period”。
 
-## 四、Timer使用场景
+## Timer使用场景
 
 Timer是Java SDK1.3引入的，SDK1.5时引入了ScheduledThreadPoolExecutor更能更强大，也更稳定，更精确。大多数时候，应该使用ScheduledThreadPoolExecutor。Timer优势在于使用简单，轻量级，比较适合轻量级任务且精度要求不高的场景，比如周期性发送心跳包，周期性清理缓存，周期性更新状态。
