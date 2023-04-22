@@ -70,8 +70,10 @@ public class SnakeTimer {
           gameTimer.cancel();
       }
   }
-}使用Timer比较简单，创建一个Timer，然后向Timer提交一个任务。Timer后台线程会在指定的时间自动执行任务。向Timer提交任务主要有两个方法。```schedule```和```scheduleAtFixedRate```，一个是提交一次性任务，一个是提交周期性任务。
+}
 ```
+
+使用Timer比较简单，创建一个Timer，然后向Timer提交一个任务。Timer后台线程会在指定的时间自动执行任务。向Timer提交任务主要有两个方法。```schedule```和```scheduleAtFixedRate```，一个是提交一次性任务，一个是提交周期性任务。
 
 ## 二、Timer内部的实现
 
@@ -184,7 +186,7 @@ public class SnakeTimer {
 
    下面是一个概要图。
 
-   ![Timer](http://image.dzmiba.com/Timer.jpg)
+   ![Timer](https://dzmiba.com/Timer.jpg)
 
    
 
@@ -259,7 +261,7 @@ timer.schedule(A, 0, 10*1000); // 提交周期性任务，每10s运行一次。�
 
 fix delay是指一个任务被延误执行后，不管之前错过了多少次执行，继续以固定的delay时间（这里就是10s）执行后续任务实例。如下图：
 
-![fixed_rate](http://image.dzmiba.com/fixed_delay.jpg)
+![fixed_rate](https://dzmiba.com/fixed_delay.jpg)
 
 再看下面以fixed rate方式提交任务的代码，以及运行情况
 
@@ -270,7 +272,7 @@ timer.schedule(B, 0, 0); // 提交一次性任务B，B运行时间40s
 timer.scheduleAtFixedRate(A, 0, 10*1000); // 提交周期性任务，每10s运行一次。以fixed rate方式，
 ```
 
-![fixed_rate](http://image.dzmiba.com/fixed_rate.jpg)
+![fixed_rate](https://dzmiba.com/fixed_rate.jpg)
 
 我们可以看到fixed rate方式，当一个任务被延误后，它在后面会把错误的执行次数给补上。这种方式，可能会出现一个被延误执行的任务，在某个时间连续执行多次。
 
