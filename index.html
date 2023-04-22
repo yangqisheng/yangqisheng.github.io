@@ -215,7 +215,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-04-22 15:53:27" itemprop="dateModified" datetime="2023-04-22T15:53:27+08:00">2023-04-22</time>
+                <time title="Modified: 2023-04-22 16:14:58" itemprop="dateModified" datetime="2023-04-22T16:14:58+08:00">2023-04-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -259,7 +259,7 @@
 <li>How&amp;Why : 内部是怎么实现的，为什么要那么实现。有哪些优点和局限。</li>
 <li>When : 什么场景下适合使用Timer。</li>
 </ol>
-<h2 id="一、Timer是什么"><a href="#一、Timer是什么" class="headerlink" title="一、Timer是什么"></a>一、Timer是什么</h2><blockquote>
+<h2 id="Timer是什么"><a href="#Timer是什么" class="headerlink" title="Timer是什么"></a>Timer是什么</h2><blockquote>
 <p>A facility for threads to schedule tasks for future execution in a background thread. Tasks may be scheduled for one-time execution, or for repeated execution at regular intervals.</p>
 </blockquote>
 <p>Timer是JDK1.3引入的定时任务执行器。JDK文档说明了Timer是一个任务执行器，它可以在后台执行一次性或者周期性的任务。比如，我们在日常编码中，可能经常会碰到一个场景，需要定时清理缓存、日志，又或者有些场景需要周期性更新某个状态。那么Timer就是替我们做这些事情的。然而由于Timer的局限性，JDK1.5又引入了ScheduledThreadPoolExecutor，提供更稳定更精确且功能更多的定时执行器。</p>
