@@ -291,4 +291,119 @@
         <tag>JDK源码</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Java SDK中线程池系列（一）---- Executor</title>
+    <url>/2020/06/09/java%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%B3%BB%E5%88%97%EF%BC%88%E4%B8%80%EF%BC%89/</url>
+    <content><![CDATA[<p>JDK中Executor是一个interface，只有一个方法<code>void execute(Runnable r)</code>，是一个执行器，<code>execute</code>方法用了执行一个Runnable任务。这个方法是异步还是同步的，没有要求。下面是对应的Java Doc说明。</p>
+<blockquote>
+<p>An object that executes submitted Runnable tasks. This interface provides a way of decoupling task submission from the mechanics of how each task will be run, including details of thread use, scheduling, etc. An Executor is normally used instead of explicitly creating threads. For example, rather than invoking new Thread(new RunnableTask()).start() for each of a set of tasks, you might use:<br>  Executor executor = anExecutor(); </p>
+<p>  executor.execute(new RunnableTask1());</p>
+<p>  executor.execute(new RunnableTask2());</p>
+</blockquote>
+<p>本博文循序渐进地介绍几种文档中说明的Executor实现，帮助理解Executor。为后面的线程池内容做铺垫。</p>
+<span id="more"></span>
+
+
+
+<h2 id="DirectExecutor"><a href="#DirectExecutor" class="headerlink" title="DirectExecutor"></a>DirectExecutor</h2><p>DirectExecutor是最简单的Executor实现，外部线程调用<code>DirectExecutor.execute(r)</code>时是其自身调用<code>r.run()</code></p>
+<p>如下代码：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">DirectExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">        r.run();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> class <span class="title">Test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Executor executor = <span class="keyword">new</span> DirectExecutor();</span><br><span class="line">        Runnable r = () -&gt; System.out.println(<span class="string">&quot;hello&quot;</span>);</span><br><span class="line">        executor.execute(r); <span class="comment">// 相当于r.run();</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>DirectExecutor.execute是同步的，没什么实际用途，只是一个demo。</p>
+<h2 id="ThreadPerTaskExecutor"><a href="#ThreadPerTaskExecutor" class="headerlink" title="ThreadPerTaskExecutor"></a>ThreadPerTaskExecutor</h2><p>ThreadPerTaskExecutor是一个独立线程执行器，用户给它提交任务时，它内部为每个任务spawn一个新的线程来执行任务。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ThreadPerTaskExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">new</span> Thread(r).start();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这种Executor是异步的，外部线程调用execute后马上返回。缺点是：如果任务运行开销相对创建及销毁线程的开销很小，这种方式就很不值当。</p>
+<h2 id="SerialExecutor"><a href="#SerialExecutor" class="headerlink" title="SerialExecutor"></a>SerialExecutor</h2><p>SerialExecutor是一个串行Executor，它限定了一个Executor执行task的顺序，至于Executor怎么执行任务，不关心，委托给其它Executor。它只是在某个Executor执行task时增加了串行的约束。这种情况，和Java IO里面的InputStream/OutputStream有点像，某种Stream需要缓存时，就套一层buffer。代理模式呼之欲出了。<code>SerialExecutor</code>使用了代理模式。看下面v1代码：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// v1</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SerialExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> Executor executor;</span><br><span class="line">    <span class="keyword">final</span> Queue&lt;Runnable&gt; queue = <span class="keyword">new</span> ArrayDeque&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    SerialExecutor(Executor executor) &#123;</span><br><span class="line">        <span class="keyword">this</span>.executor = executor;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">        queue.add(() -&gt; &#123;</span><br><span class="line">            r.run();</span><br><span class="line">            <span class="keyword">if</span> (!queue.isEmpty()) &#123;</span><br><span class="line">                Runnable t = queue.poll();</span><br><span class="line">                executor.execute(t);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>由于需要串行执行，必然需要有个队列来保存task。这里使用了ArrayDeque。现在来想想execute怎么实现。<code>SerialExecutor</code>只有一个execute提交task的方法，如果在这个方法里面只是将task加入queue末尾然后返回，那么由谁来从queue中取出task并提交内部executor执行呢？另外，一个task执行完成后，又由谁从queue头部取出新的task提交给executor呢？这里的executor不是一个线程池，它只是一个可以执行task的对象，只有一个execute方法，本身内部有可能自带线程，也有可能不带线程而由调用者线程来执行task。</p>
+<p>既然不能有独立的线程从队列中依次取出task交由executor执行，那么有个巧妙的方法：每个task执行完自身的事情后，从queue头部取出task，并提交executor执行。也就是，<code>execute(Runnable r)</code>方法里将<code>r</code>再做一次封装，将执行<code>r</code>任务和取队列下一个任务封装在一起，这样就能将队列里面所有的task串起来依次执行。不过上面的v1版本代码有几个问题：</p>
+<ol>
+<li><code>SerialExecutor</code>不是线程安全的。如果多个线程同时调用<code>SerialExecutor.execute</code>，会有race condition。</li>
+<li><code>execute</code>的实现，只是将一个封装task加入队列，并没有交由内部executor执行。如果当前executor已经在执行队列中的task了，那么这个新加入的task会在后续某个时候被poll并被执行；如果当前executor没有在执行呢？就有问题了，队列里面的task没有机会被poll。所以可能需要一个成员变量<code>active</code>标记当前正在执行的task。当active是null的时候，由外部线程在执行<code>execute(r)</code>时从queue中取出task交由内部executor执行。</li>
+</ol>
+<p>下面是v2版代码</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// v2</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SerialExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> Executor executor;</span><br><span class="line">    <span class="keyword">final</span> Queue&lt;Runnable&gt; queue = <span class="keyword">new</span> ArrayDeque&lt;&gt;();</span><br><span class="line">    Runnable active;</span><br><span class="line"></span><br><span class="line">    SerialExecutor(Executor executor) &#123;</span><br><span class="line">        <span class="keyword">this</span>.executor = executor;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">        queue.add(() -&gt; &#123;</span><br><span class="line">            r.run();</span><br><span class="line">            <span class="keyword">if</span> (!queue.isEmpty()) &#123;</span><br><span class="line">                Runnable t = queue.poll();</span><br><span class="line">                executor.execute(t);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        <span class="keyword">if</span> (active == <span class="keyword">null</span>) &#123;</span><br><span class="line">            Runnable t = queue.poll(); <span class="comment">// 上面add了task，队列里肯定有task</span></span><br><span class="line">            active = t;</span><br><span class="line">            executor.execute(t);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>v2版代码还是有bug的，如果有多个外部线程同时提交任务，只有第一个获取锁的那个线程提交的任务执行完成，其它的都不会执行。为什么？因为<code>execute</code>方法用synchronized进行同步了，第一个获取锁的线程提交任务后，马上执行，并将active设置了，等到自身执行完之后，并没有将active置回null，导致其它线程将任务提交后，并没有交由内部executor执行。再改一版v3如下：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// v3</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SerialExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> Executor executor;</span><br><span class="line">    <span class="keyword">final</span> Queue&lt;Runnable&gt; queue = <span class="keyword">new</span> ArrayDeque&lt;&gt;();</span><br><span class="line">    Runnable active;</span><br><span class="line"></span><br><span class="line">    SerialExecutor(Executor executor) &#123;</span><br><span class="line">        <span class="keyword">this</span>.executor = executor;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">        queue.add(() -&gt; &#123;</span><br><span class="line">            r.run();</span><br><span class="line">            <span class="keyword">if</span> (!queue.isEmpty()) &#123;</span><br><span class="line">                Runnable t = queue.poll();</span><br><span class="line">                active = t;</span><br><span class="line">                executor.execute(t);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                active = <span class="keyword">null</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        <span class="keyword">if</span> (active == <span class="keyword">null</span>) &#123;</span><br><span class="line">            Runnable t = queue.poll(); <span class="comment">// 上面add了task，队列里肯定有task</span></span><br><span class="line">            active = t;</span><br><span class="line">            executor.execute(t);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>v3貌似可以work了。但是第14行到20行，写的很粗糙。重写如下：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> ((active = queue.poll()) != <span class="keyword">null</span>) &#123; <span class="comment">// 如果Queue是空，Queue.poll返回null，不会阻塞</span></span><br><span class="line">    executor.execute(active);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>再仔细看下，v3版代码中有两段重复，应该抽象出一个独立的方法。得到v4版如下：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// v4</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SerialExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> Executor executor;</span><br><span class="line">    <span class="keyword">final</span> Queue&lt;Runnable&gt; queue = <span class="keyword">new</span> ArrayDeque&lt;&gt;();</span><br><span class="line">    Runnable active;</span><br><span class="line"></span><br><span class="line">    SerialExecutor(Executor executor) &#123;</span><br><span class="line">        <span class="keyword">this</span>.executor = executor;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">        queue.add(() -&gt; &#123;</span><br><span class="line">            r.run();</span><br><span class="line">            scheduleNext();</span><br><span class="line">        &#125;);</span><br><span class="line">        <span class="keyword">if</span> (active == <span class="keyword">null</span>) &#123;</span><br><span class="line">            scheduleNext();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">scheduleNext</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="comment">// // 如果Queue是空，Queue.poll返回null，不会阻塞</span></span><br><span class="line">        <span class="keyword">if</span> ((active = queue.poll()) != <span class="keyword">null</span>) &#123; </span><br><span class="line">    		executor.execute(active);</span><br><span class="line">		&#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>v4版还有问题么？还有。假如用户提交的任务在运行时出现异常，那么task执行链就会断裂，内部active始终是这个异常的task，导致其它task无法运行。所以，<code>r.run()</code>需要用try包裹一下。得到v5版代码如下：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// v5</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SerialExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> Executor executor;</span><br><span class="line">    <span class="keyword">final</span> Queue&lt;Runnable&gt; queue = <span class="keyword">new</span> ArrayDeque&lt;&gt;();</span><br><span class="line">    Runnable active;</span><br><span class="line"></span><br><span class="line">    SerialExecutor(Executor executor) &#123;</span><br><span class="line">        <span class="keyword">this</span>.executor = executor;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">        queue.add(() -&gt; &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                r.run();</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            	scheduleNext();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        <span class="keyword">if</span> (active == <span class="keyword">null</span>) &#123;</span><br><span class="line">            scheduleNext();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">scheduleNext</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="comment">// // 如果Queue是空，Queue.poll返回null，不会阻塞</span></span><br><span class="line">        <span class="keyword">if</span> ((active = queue.poll()) != <span class="keyword">null</span>) &#123; </span><br><span class="line">    		executor.execute(active);</span><br><span class="line">		&#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>总体来说，Executor比较简单，几个具体实现也简单。不过里面还是有些可以学习的地方。SerialExecutor两个方法用最严格的synchronized来同步了，可否用更细粒度的锁，让两个方法能并发处理呢？</p>
+]]></content>
+      <categories>
+        <category>Java</category>
+      </categories>
+      <tags>
+        <tag>线程池</tag>
+        <tag>Executor</tag>
+        <tag>ExecutorService</tag>
+        <tag>JDK8源码</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java SDK中线程池系列（三）---- ThreadPoolExecutor</title>
+    <url>/2020/06/09/java%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%B3%BB%E5%88%97%EF%BC%88%E4%B8%89%EF%BC%89/</url>
+    <content><![CDATA[<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><ol>
+<li>怎么中断一个线程？<ol>
+<li>设置一个flag，该线程去check这个flag</li>
+<li>向中断线程发送一个中断调用。</li>
+</ol>
+</li>
+<li>依赖倒置原则在java编程中具体表现形式<ol>
+<li>类成员变量，申明为接口类型而不是实现类型</li>
+<li>类方法参数，声明为接口类型而不是实现类型</li>
+<li>类方法返回类型，申明为接口类型而不是实现类型</li>
+</ol>
+</li>
+<li><code>Runnable</code>不是范型类，<code>Callable&lt;T&gt;</code>是泛型类</li>
+</ol>
+]]></content>
+      <categories>
+        <category>Java</category>
+      </categories>
+      <tags>
+        <tag>线程池</tag>
+        <tag>Executor</tag>
+        <tag>ExecutorService</tag>
+        <tag>JDK8源码</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java SDK中线程池系列（二）---- ExecutorService</title>
+    <url>/2020/06/09/java%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%B3%BB%E5%88%97%EF%BC%88%E4%BA%8C%EF%BC%89/</url>
+    <content><![CDATA[<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><ol>
+<li>怎么中断一个线程？<ol>
+<li>设置一个flag，该线程去check这个flag</li>
+<li>向中断线程发送一个中断调用。</li>
+</ol>
+</li>
+<li>依赖倒置原则在java编程中具体表现形式<ol>
+<li>类成员变量，申明为接口类型而不是实现类型</li>
+<li>类方法参数，声明为接口类型而不是实现类型</li>
+<li>类方法返回类型，申明为接口类型而不是实现类型</li>
+</ol>
+</li>
+<li><code>Runnable</code>不是范型类，<code>Callable&lt;T&gt;</code>是泛型类</li>
+</ol>
+]]></content>
+      <categories>
+        <category>Java</category>
+      </categories>
+      <tags>
+        <tag>线程池</tag>
+        <tag>Executor</tag>
+        <tag>ExecutorService</tag>
+        <tag>JDK8源码</tag>
+      </tags>
+  </entry>
 </search>
