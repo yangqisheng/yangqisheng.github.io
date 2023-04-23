@@ -313,7 +313,7 @@
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ThreadPerTaskExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">new</span> Thread(r).start();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>这种Executor是异步的，外部线程调用execute后马上返回。缺点是：如果任务运行开销相对创建及销毁线程的开销很小，这种方式就很不值当。</p>
-<h2 id="SerialExecutor"><a href="#SerialExecutor" class="headerlink" title="SerialExecutor"></a>SerialExecutor</h2><p>SerialExecutor是一个串行Executor，它限定了一个Executor执行task的顺序，至于Executor怎么执行任务，不关心，委托给其它Executor。它只是在某个Executor执行task时增加了串行的约束。这种情况，和Java IO里面的InputStream/OutputStream有点像，某种Stream需要缓存时，就套一层buffer。代理模式呼之欲出了。<code>SerialExecutor</code>使用了代理模式。看下面v1代码：</p>
+<h2 id="SerialExecutor"><a href="#SerialExecutor" class="headerlink" title="SerialExecutor"></a>SerialExecutor</h2><p>SerialExecutor是一个串行Executor，它限定了一个Executor执行task的顺序，至于Executor怎么执行任务，不关心，委托给其它Executor。它只是在某个Executor执行task时增加了串行的约束。这种情况，和Java IO里面的InputStream/OutputStream有点像，某种Stream需要缓存时，就套一层buffer。Decorator模式呼之欲出了。<code>SerialExecutor</code>使用了Decorator模式。看下面v1代码：</p>
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// v1</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SerialExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> Executor executor;</span><br><span class="line">    <span class="keyword">final</span> Queue&lt;Runnable&gt; queue = <span class="keyword">new</span> ArrayDeque&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    SerialExecutor(Executor executor) &#123;</span><br><span class="line">        <span class="keyword">this</span>.executor = executor;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">        queue.add(() -&gt; &#123;</span><br><span class="line">            r.run();</span><br><span class="line">            <span class="keyword">if</span> (!queue.isEmpty()) &#123;</span><br><span class="line">                Runnable t = queue.poll();</span><br><span class="line">                executor.execute(t);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>由于需要串行执行，必然需要有个队列来保存task。这里使用了ArrayDeque。现在来想想execute怎么实现。<code>SerialExecutor</code>只有一个execute提交task的方法，如果在这个方法里面只是将task加入queue末尾然后返回，那么由谁来从queue中取出task并提交内部executor执行呢？另外，一个task执行完成后，又由谁从queue头部取出新的task提交给executor呢？这里的executor不是一个线程池，它只是一个可以执行task的对象，只有一个execute方法，本身内部有可能自带线程，也有可能不带线程而由调用者线程来执行task。</p>
@@ -350,22 +350,34 @@
       </tags>
   </entry>
   <entry>
-    <title>Java SDK中线程池系列（三）---- ThreadPoolExecutor</title>
-    <url>/2020/06/09/java%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%B3%BB%E5%88%97%EF%BC%88%E4%B8%89%EF%BC%89/</url>
-    <content><![CDATA[<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><ol>
-<li>怎么中断一个线程？<ol>
-<li>设置一个flag，该线程去check这个flag</li>
-<li>向中断线程发送一个中断调用。</li>
+    <title>Java SDK中线程池系列（三）---- CompletionService</title>
+    <url>/2020/06/11/java%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%B3%BB%E5%88%97%EF%BC%88%E4%B8%89%EF%BC%89/</url>
+    <content><![CDATA[<h2 id="Content"><a href="#Content" class="headerlink" title="Content"></a>Content</h2><ol>
+<li>What, CompletionService是什么，解决什么问题。</li>
+<li>How &amp; Why，怎么解决的，为什么那么处理。</li>
+<li>When，什么场景下使用</li>
 </ol>
-</li>
-<li>依赖倒置原则在java编程中具体表现形式<ol>
-<li>类成员变量，申明为接口类型而不是实现类型</li>
-<li>类方法参数，声明为接口类型而不是实现类型</li>
-<li>类方法返回类型，申明为接口类型而不是实现类型</li>
+<h2 id="CompletionService是什么"><a href="#CompletionService是什么" class="headerlink" title="CompletionService是什么"></a>CompletionService是什么</h2><p>我们先来看一个《Java concurrent in practice》书上的一个例子。有个HTML页面，里面有文字和图片，浏览器渲染这个HTML页面的时候，需要渲染文字和每张图片。图片需要从远程加载图片数据后才能渲染。为了能并行处理，浏览器将渲染文字封装成一个task，下载图片也可以封装成一个任务。不过每张图片的下载都是独立的，为了尽量并行处理，可以将每张图片的下载封装成一个任务。这些独立的任务可以并发的来处理。下面是一个可能的实现代码：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">FutureRender</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 内部Executor，可以由外部注入</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> ExecutorService executor = ...;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">renderPage</span><span class="params">(CharSequence source)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 将HTML中的图片地址全部扣出来</span></span><br><span class="line">        <span class="keyword">final</span> List&lt;ImageInfo&gt; imageInfos = scanForImageInfo(source);</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 将每个下载任务封装成一个任务，提交executore，得到一个future，放到List</span></span><br><span class="line">        List&lt;Future&lt;ImageData&gt;&gt; futures = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        <span class="keyword">for</span> (ImageInfo imageInfo : imageInfos) &#123;</span><br><span class="line">            Callable&lt;ImageData&gt; task = <span class="keyword">new</span> Callable&lt;ImageData&gt;() &#123;</span><br><span class="line">                <span class="keyword">return</span> imageInfo.downloadImage();</span><br><span class="line">            &#125;</span><br><span class="line">            Future&lt;ImageData&gt; f = executor.submit(task);</span><br><span class="line">            futures.add(f);</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 渲染文字</span></span><br><span class="line">        renderText(source);</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 依次取出下载完成的图片数据，渲染图片</span></span><br><span class="line">            <span class="keyword">for</span> (Future&lt;ImageData&gt; f : futures) &#123;</span><br><span class="line">                renderImage(f.get());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            ...</span><br><span class="line">        &#125; <span class="keyword">catch</span> (ExecutionException e) &#123;</span><br><span class="line">            ...</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>看起来，这个方案，已经尽可能的并行化了。然而，我们看line 24，有可能会出现这种情况：第一张图片很大还在下载中，而第2,3,4张图片都已经下载完成了。但是代码还是卡在line 24，为什么？因为future.get是阻塞的，它需要等到第1个future完成。之所以会出现这种情况，是因为外部没法知道一个Executor里面执行的多个任务哪些已经执行完成了，只能通过future.get来阻塞等待，或者通过非阻塞接口轮训判断。两个方法都不高效。容易想到的一个方案是：某个东西将Executor中完成的future放入一个队列中，外部从这个队列来获取已完成的任务。如果这个队列是空，说明没有一个任务完成，那么外部get时会阻塞，否则就直接能获取到已完成任务。额，这个东西就是CompletionService。看下面类图</p>
+<img src="https://dzmiba.com/CompletionService.png" alt="CompletionService" style="zoom:25%;">
+
+<p>CompletionService接口就三个方法：</p>
+<ol>
+<li>submit提交任务方法</li>
+<li>take获取已完成任务，阻塞式</li>
+<li>poll获取已完成，非阻塞式，如果没有任务完成，返回null。</li>
 </ol>
-</li>
-<li><code>Runnable</code>不是范型类，<code>Callable&lt;T&gt;</code>是泛型类</li>
-</ol>
+<p>从接口方法可知：CompletionService是一个这样的东西，你可以向他提交任务，然后通过task或poll获取已完成的任务。它和ExecutorService接口一个重要的区别是：CompletionService没有execute方法，即CompletionService本身不能执行任务。ExecutorCompletionService是CompletionService的一个实现，内部注入了一个Executor用于执行任务，还有个BlockingQueue用来保存已完成任务。ExecutorCompletionService是Executor和CompletionService的合体。其内部BlockingQueue是线程安全的。BlockingQueue.take方法是阻塞的，用在这里非常合适。</p>
+<p>再回到上面渲染HTML的例子，用这个ExecutorCompletionService优化一下上面的代码。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 代码来自《Java concurrent in action》</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Renderer</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> ExecutorService executor;</span><br><span class="line">    Renderer(ExecutorService executor) &#123; <span class="keyword">this</span>.executor = executor; &#125;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">renderPage</span><span class="params">(CharSequence source)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> List&lt;ImageInfo&gt; info = scanForImageInfo(source);</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 创建了一个ExecutorCompletionService</span></span><br><span class="line">        CompletionService&lt;ImageData&gt; completionService =</span><br><span class="line">            <span class="keyword">new</span> ExecutorCompletionService&lt;ImageData&gt;(executor);</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">final</span> ImageInfo imageInfo : info)</span><br><span class="line">            <span class="comment">// 向ExecutorCompletionService提交下载图片任务</span></span><br><span class="line">            completionService.submit(<span class="keyword">new</span> Callable&lt;ImageData&gt;() &#123;</span><br><span class="line">                 <span class="function"><span class="keyword">public</span> ImageData <span class="title">call</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                     <span class="keyword">return</span> imageInfo.downloadImage();</span><br><span class="line">                 &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">        </span><br><span class="line">        renderText(source);</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">for</span>(<span class="keyword">int</span> t=<span class="number">0</span>,n= info.size();t&lt;n; t++)&#123;</span><br><span class="line">                <span class="comment">// 这里不会出现未完成任务挡住已完成任务</span></span><br><span class="line">                Future&lt;ImageData&gt; f = completionService.take();</span><br><span class="line">                ImageData imageData = f.get();</span><br><span class="line">                renderImage(imageData);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            Thread.currentThread().interrupt();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (ExecutionException e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> launderThrowable(e.getCause());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>有了ExecutorCompletionService后，就不会出现未下载的图片阻挡已下载完成的图片的渲染了。在浏览器里，用户看到的页面会更丝滑。</p>
+<h2 id="ExecutorCompletionService的内部实现"><a href="#ExecutorCompletionService的内部实现" class="headerlink" title="ExecutorCompletionService的内部实现"></a>ExecutorCompletionService的内部实现</h2><p>先看类图</p>
+<p><img src="https://dzmiba.com/ExecutorCompletionService.png" alt="ExecutorCompletionService"></p>
+<p>submit提交任务的时候，将Callable<T>类型的task封装成QueueFuture<V>，以便将completionQueue放进去，当这个QueueFuture执行完成时会调用done方法，而在这个done方法里会将QueueFuture里面Future加入到BlockingQueue，这个时候，如果有外部线程阻塞在take调用，它就会被唤醒，进而拿到future返回。ExecutorCompletionService内部实现代码较简单。</V></T></p>
+<h2 id="ExecutorCompletionService适合什么场景下使用"><a href="#ExecutorCompletionService适合什么场景下使用" class="headerlink" title="ExecutorCompletionService适合什么场景下使用"></a>ExecutorCompletionService适合什么场景下使用</h2><p>适合这样的场景：有一些task，它们可以并发执行，用户只需要拿到第一个完成的task的结果，其它task可以随之取消或忽略。比如生活中的打车聚合平台，当用户选定起始点后，聚合平台就向各个出行公司发送请求，最先成功派车的出行公司获得这个订单，其它的请求就可以取消了。</p>
 ]]></content>
       <categories>
         <category>Java</category>
@@ -375,6 +387,7 @@
         <tag>Executor</tag>
         <tag>ExecutorService</tag>
         <tag>JDK11源码</tag>
+        <tag>CompletionService</tag>
       </tags>
   </entry>
   <entry>
@@ -404,6 +417,9 @@
 </li>
 </ol>
 <p>JDK里<code>AbstractExecutorService implements ExecutorService</code>，提供上述6类方法中部分的实现。实现了submit, invokeAll, invokeAny。其它的留给子类实现。</p>
+<p>如下类图：</p>
+<img src="https://dzmiba.com/ExecutorService.png" alt="ExecutorService" style="zoom: 25%;">
+
 <h2 id="submit方法的实现"><a href="#submit方法的实现" class="headerlink" title="submit方法的实现"></a>submit方法的实现</h2><p>ExecutorService.submit可以接收Runnable和Callable<T>，对于Callable<T>，可以将其包装为FutureTask<T>；对于Runnable怎么办，它没有返回值，可以人为的给Runnable设置一个返回值，比如null。</T></T></T></p>
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">AbstractExecutorService</span> <span class="keyword">implements</span> <span class="title">ExecutorService</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 为Runnable创建一个FutureTask,用户可以为这个Runnable设置一个dummy的返回值</span></span><br><span class="line">    <span class="keyword">protected</span> &lt;T&gt; <span class="function">RunnableFuture&lt;T&gt; <span class="title">newTaskFor</span><span class="params">(Runnable runnable, T value)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> FutureTask&lt;T&gt;(runnable, value);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 为Callabe&lt;T&gt;创建一个FutureTask。这里为什么返回RunnableFuture而不返回FutureTask呢？</span></span><br><span class="line">    <span class="comment">// 依赖倒置，更好扩展</span></span><br><span class="line">    <span class="keyword">protected</span> &lt;T&gt; <span class="function">RunnableFuture&lt;T&gt; <span class="title">newTaskFor</span><span class="params">(Callable&lt;T&gt; callable)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> FutureTask&lt;T&gt;(callable);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> Future&lt;?&gt; submit(Runnable task) &#123;</span><br><span class="line">        <span class="keyword">if</span> (task == <span class="keyword">null</span>) <span class="keyword">throw</span> <span class="keyword">new</span> NullPointerException();</span><br><span class="line">        RunnableFuture&lt;Void&gt; ftask = newTaskFor(task, <span class="keyword">null</span>);</span><br><span class="line">        execute(ftask);</span><br><span class="line">        <span class="keyword">return</span> ftask;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">public</span> &lt;T&gt; <span class="function">Future&lt;T&gt; <span class="title">submit</span><span class="params">(Runnable task, T result)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (task == <span class="keyword">null</span>) <span class="keyword">throw</span> <span class="keyword">new</span> NullPointerException();</span><br><span class="line">        RunnableFuture&lt;T&gt; ftask = newTaskFor(task, result);</span><br><span class="line">        execute(ftask);</span><br><span class="line">        <span class="keyword">return</span> ftask;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">public</span> &lt;T&gt; <span class="function">Future&lt;T&gt; <span class="title">submit</span><span class="params">(Callable&lt;T&gt; task)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (task == <span class="keyword">null</span>) <span class="keyword">throw</span> <span class="keyword">new</span> NullPointerException();</span><br><span class="line">        RunnableFuture&lt;T&gt; ftask = newTaskFor(task);</span><br><span class="line">        execute(ftask);</span><br><span class="line">        <span class="keyword">return</span> ftask;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -411,7 +427,8 @@
 <h2 id="invokeAll方法的实现"><a href="#invokeAll方法的实现" class="headerlink" title="invokeAll方法的实现"></a>invokeAll方法的实现</h2><p>invokeAll方法有两个，其中一个带超时等待时间。用户通过invokeAll批量提交任务，阻塞等待全部完成，或者超时时间到，再返回。如果在超时时间到了后还有任务没有执行，那么就要从队列中清除这些等待执行的任务。</p>
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// JDK11里面AbstractExecutorService.invokeAll的实现</span></span><br><span class="line"><span class="keyword">public</span> &lt;T&gt; List&lt;Future&lt;T&gt;&gt; invokeAll(Collection&lt;? extends Callable&lt;T&gt;&gt; tasks,</span><br><span class="line">                                     <span class="keyword">long</span> timeout, TimeUnit unit)</span><br><span class="line">    <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">    <span class="keyword">if</span> (tasks == <span class="keyword">null</span>)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> NullPointerException();</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">long</span> nanos = unit.toNanos(timeout);</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">long</span> deadline = System.nanoTime() + nanos;</span><br><span class="line">    ArrayList&lt;Future&lt;T&gt;&gt; futures = <span class="keyword">new</span> ArrayList&lt;&gt;(tasks.size());</span><br><span class="line">    <span class="keyword">int</span> j = <span class="number">0</span>;</span><br><span class="line">    timedOut: <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (Callable&lt;T&gt; t : tasks)</span><br><span class="line">            futures.add(newTaskFor(t));</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">int</span> size = futures.size();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Interleave time checks and calls to execute in case</span></span><br><span class="line">        <span class="comment">// executor doesn&#x27;t have any/much parallelism.</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; size; i++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (((i == <span class="number">0</span>) ? nanos : deadline - System.nanoTime()) &lt;= <span class="number">0L</span>)</span><br><span class="line">                <span class="keyword">break</span> timedOut;</span><br><span class="line">            execute((Runnable)futures.get(i));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (; j &lt; size; j++) &#123;</span><br><span class="line">            Future&lt;T&gt; f = futures.get(j);</span><br><span class="line">            <span class="keyword">if</span> (!f.isDone()) &#123;</span><br><span class="line">                <span class="keyword">try</span> &#123; f.get(deadline - System.nanoTime(), NANOSECONDS); &#125;</span><br><span class="line">                <span class="keyword">catch</span> (CancellationException | ExecutionException ignore) &#123;&#125;</span><br><span class="line">                <span class="keyword">catch</span> (TimeoutException timedOut) &#123;</span><br><span class="line">                    <span class="keyword">break</span> timedOut;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> futures;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">        cancelAll(futures);</span><br><span class="line">        <span class="keyword">throw</span> t;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// Timed out before all the tasks could be completed; cancel remaining</span></span><br><span class="line">    cancelAll(futures, j);</span><br><span class="line">    <span class="keyword">return</span> futures;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p><img src="https://dzmiba.com/FutureTask.png" alt="FutureTask"></p>
+<img src="https://dzmiba.com/FutureTask.png" alt="FutureTask" style="zoom: 25%;">
+
 <p>方法执行逻辑：</p>
 <ol>
 <li><p>将批量的任务封装成Future<T>。实际是封装成FutureTask<T>，FutureTask是RunnableFuture<T>的实现类。RunnableFuture extends Runnable, Future<V>。</V></T></T></T></p>
@@ -466,6 +483,7 @@
 <li>提交一个future。</li>
 <li>通过ecs.poll判断是否有future已经完成。因为poll是非阻塞的，马上返回。如果有完成的futre，就到53行，return f.get()；将完成的future结果返回了。如果没有完成的，继续取一个新的任务，调到第3步骤。同时判断是否到达deadline，如果到达deadline，抛出TimeoutException。这段代码里面有很多细节要考虑。我们看到代码最后还有个finally块，当有一个任务完成或者超时时间到了的情况下，需要将其它任务取消，否则这些任务浪费资源。</li>
 </ol>
+<p>对上面JDK11的代码我有个疑问，第11行，<code>ExecutorCompletionService&lt;T&gt; ecs = new ExecutorCompletionService&lt;T&gt;(this)</code>这句代码，是否改成<code>CompletionService&lt;T&gt; cs = new ExecutorCompletionService&lt;T&gt;(this)</code>更好。</p>
 ]]></content>
       <categories>
         <category>Java</category>
@@ -476,6 +494,34 @@
         <tag>ExecutorService</tag>
         <tag>JDK11源码</tag>
         <tag>AbstractExecutorService</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java SDK中线程池系列（三）---- ThreadPoolExecutor</title>
+    <url>/2020/06/09/java%E7%BA%BF%E7%A8%8B%E6%B1%A0%E7%B3%BB%E5%88%97%EF%BC%88%E5%9B%9B%EF%BC%89/</url>
+    <content><![CDATA[<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><ol>
+<li>怎么中断一个线程？<ol>
+<li>设置一个flag，该线程去check这个flag</li>
+<li>向中断线程发送一个中断调用。</li>
+</ol>
+</li>
+<li>依赖倒置原则在java编程中具体表现形式<ol>
+<li>类成员变量，申明为接口类型而不是实现类型</li>
+<li>类方法参数，声明为接口类型而不是实现类型</li>
+<li>类方法返回类型，申明为接口类型而不是实现类型</li>
+</ol>
+</li>
+<li><code>Runnable</code>不是范型类，<code>Callable&lt;T&gt;</code>是泛型类</li>
+</ol>
+]]></content>
+      <categories>
+        <category>Java</category>
+      </categories>
+      <tags>
+        <tag>线程池</tag>
+        <tag>Executor</tag>
+        <tag>ExecutorService</tag>
+        <tag>JDK11源码</tag>
       </tags>
   </entry>
 </search>
